@@ -7,7 +7,7 @@ class soma.Chunk extends soma.Chunk
         @el or= $(@html)
         @el.data('view', @)
                     
-    loadElement: (tag, attributes) ->
+    loadElement: (tag, attributes, callback) ->
         urlAttr = (if tag in ['img', 'script'] then 'src' else 'href')
         url = attributes[urlAttr]
         
@@ -52,7 +52,7 @@ class soma.Chunk extends soma.Chunk
             el.attr(attributes)
 
         if el.attr('data-loading') 
-            done = @wait()
+            done = @wait(callback)
             el.bind 'load', =>
                 el.attr('data-loading', null)
                 done()
@@ -61,15 +61,18 @@ class soma.Chunk extends soma.Chunk
                 el.attr('data-loading', null)
                 @emit('error', 'requireElement', tag, attributes)
                 done()
+                
+        else
+            callback() if callback
 
         return el
 
-    loadScript: (attributes) ->
+    loadScript: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
         attributes.type = 'text/javascript'
-        return @loadElement 'script', attributes
+        return @loadElement 'script', attributes, callback
         
     loadStylesheet: (attributes) ->
         if typeof attributes is 'string'

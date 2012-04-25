@@ -4,7 +4,6 @@ path = require('path')
 
 mime = require('../lib/node/lib/mime')
 soma = require('soma')
-line = require('line')
 
 load = (source, exec, serve) ->
     stats = fs.statSync(source)

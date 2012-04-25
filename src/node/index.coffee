@@ -1,7 +1,6 @@
 jar = require('jar')
 querystring = require('querystring')
 url = require('url')
-wings = require('wings')
 
 upload = require('./lib/upload')
 
@@ -41,7 +40,7 @@ class Element
 
 
 class soma.Chunk extends soma.Chunk
-    loadScript: (attributes) ->
+    loadScript: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
@@ -53,7 +52,8 @@ class soma.Chunk extends soma.Chunk
             attributes['data-src'] = attributes.src
             delete attributes.src
             
-        @context.addHeadElement(new Element('script', attributes, text))
+        @context.addHeadElement(new Element('script', attributes, text))        
+        callback() if callback
         return
         
     loadStylesheet: (attributes) ->
@@ -86,7 +86,7 @@ class soma.Chunk extends soma.Chunk
         attributes.charset = 'utf8'
 
         @context.addHeadElement(new Element('script', attributes, text))
-        return text
+        return { html: -> text }
 
     loadImage: (attributes) ->
         if typeof attributes is 'string'
@@ -201,6 +201,10 @@ class soma.ClientContext extends soma.Context
         @response.setHeader('Content-Length', contentLength)
         @response.end(body)
         return
+        
+    sendError: (err, body) ->
+        console.log(err.stack) if err
+        @send(500, body)
 
     redirect: (path) ->
         @response.statusCode = 303
