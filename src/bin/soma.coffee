@@ -70,5 +70,6 @@ soma.init = () ->
             context.begin()
 
     server.listen(packageJSON.soma.port or 8000)
+    console.log("Soma listening on port #{packageJSON.soma.port or 8000}...")
 
 soma.init()
