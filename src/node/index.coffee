@@ -254,6 +254,10 @@ class soma.InternalContext extends soma.Context
     
         @options.success(body)
 
+    sendError: (err, body) ->
+        console.log(err.stack) if err
+        @send(500, body)
+
     redirect: (path) -> @parent.redirect(path)
     
 
