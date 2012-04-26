@@ -65,6 +65,8 @@ class soma.Chunk extends soma.Chunk
         else
             callback() if callback
 
+        el.toString = -> el.html()
+        
         return el
 
     loadScript: (attributes, callback) ->

@@ -86,7 +86,7 @@ class soma.Chunk extends soma.Chunk
         attributes.charset = 'utf8'
 
         @context.addHeadElement(new Element('script', attributes, text))
-        return { html: -> text }
+        return text
 
     loadImage: (attributes) ->
         if typeof attributes is 'string'
