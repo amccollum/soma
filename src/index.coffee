@@ -61,7 +61,9 @@ class soma.Widget extends soma.EventMonitor
         @status = null
 
     emit: (event) ->
-        @status = event
+        if event in @events
+            @status = event
+            
         super
         
 
