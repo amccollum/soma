@@ -131,7 +131,7 @@ class soma.ClientContext extends soma.Context
         for key of urlParsed
             @[key] = urlParsed[key]
 
-        @jar = new jar.Jar(@request, @response, ['$ecret'])
+        @jar = new jar.Jar(@request, @response, ['$ecret']) # FIX THIS!
         @head = []
         @seen = {}
         

@@ -93,6 +93,7 @@ class soma.Chunk extends soma.Widget
 
         @data = @options.data or {}
         @errors = []
+        @waiting = 0
 
         if @options.html
             @html = @options.html
