@@ -1,5 +1,5 @@
 soma = require('soma')
-soma.$ = $ = ender
+$ = ender
 
 $.ender({
     view: (name, options) -> new soma.views[name](options)

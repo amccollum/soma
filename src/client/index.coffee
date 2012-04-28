@@ -7,12 +7,12 @@ class soma.Chunk extends soma.Chunk
         @el or= $(@html)
         @el.data('view', @)
                     
-    loadElement: (tag, attributes, callback) ->
+    loadElement: (tag, attributes, text, callback) ->
         urlAttr = (if tag in ['img', 'script'] then 'src' else 'href')
         url = attributes[urlAttr]
         
         # Check if the element is already loaded (or has been pre-fetched)
-        el = $("[#{urlAttr}=\"#{url}\"], [data-#{urlAttr}=\"#{url}\"]")
+        el = $("head [#{urlAttr}=\"#{url}\"], head [data-#{urlAttr}=\"#{url}\"]") if url
 
         if el.length
             # See whether the element was lazy-loaded
@@ -22,12 +22,16 @@ class soma.Chunk extends soma.Chunk
         else
             # Element hasn't been created yet
             el = $(document.createElement(tag))
-                
+            
             if 'type' of attributes
-                if attributes.type == 'text/javascript'
-                    el.attr('async', 'async')
+                if not url
+                    # The element content is inline
+                    el.text(text)
                     
-                else if attributes.type != 'text/css'
+                else if attributes.type == 'text/javascript'
+                    el.attr('async', 'async')
+                
+                else
                     # Load manually using AJAX
                     el.attr("data-#{urlAttr}", url)
 
@@ -38,7 +42,7 @@ class soma.Chunk extends soma.Chunk
 
                         success: (text) =>
                             el.text(text)
-                            el.trigger('load', text)
+                            el.trigger('load')
 
                         error: (xhr, status, e, data) =>
                             el.trigger('error')
@@ -46,35 +50,48 @@ class soma.Chunk extends soma.Chunk
                 $('head').append(el)
 
             # We don't need to load dataURLs
-            if url.substr(0, 5) != 'data:'
+            if url and url.substr(0, 5) != 'data:'
                 el.attr('data-loading', 'loading')
-
+                el.bind 'load error', => el.attr('data-loading', null)
+                
             el.attr(attributes)
 
-        if el.attr('data-loading') 
+        if el.attr('data-loading')
             done = @wait(callback)
             el.bind 'load', =>
-                el.attr('data-loading', null)
-                done()
+                done(el)
                 
             el.bind 'error', () =>
-                el.attr('data-loading', null)
-                @emit('error', 'requireElement', tag, attributes)
-                done()
+                @emit('error', 'loadElement', tag, attributes, text)
+                done(el)
                 
-        else
-            callback() if callback
+        else if callback
+            callback(el)
 
-        el.toString = -> el.html()
-        
         return el
 
+    setTitle: (title) ->
+        $('title').text(title)
+    
+    setMeta: (attributes, value) ->
+        if typeof attributes is 'string'
+            name = attributes
+            attributes = { name: name, value: value }
+
+        el = $("meta[name=\"#{attributes.name}\"]")
+        if not el.length
+            el = $(document.createElement('meta'))
+            $('head').append(el)
+
+        el.attr(attributes)
+        return el
+        
     loadScript: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
         attributes.type = 'text/javascript'
-        return @loadElement 'script', attributes, callback
+        return @loadElement 'script', attributes, null, callback
         
     loadStylesheet: (attributes) ->
         if typeof attributes is 'string'
@@ -83,19 +100,23 @@ class soma.Chunk extends soma.Chunk
         attributes.type = 'text/css'
         attributes.rel = 'stylesheet'
         return @loadElement 'link', attributes
-
+        
     loadTemplate: (attributes) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
         
         attributes.type = 'text/html'
-        return @loadElement 'script', attributes
+        el = @loadElement 'script', attributes
+        el.toString = -> el.html()
+        return el
 
     loadImage: (attributes) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
             
-        return @loadElement 'img', attributes
+        el = @loadElement 'img', attributes
+        el.toString = -> el.outerHTML()
+        return el
     
     loadData: (options) ->
         result = {}
@@ -137,13 +158,26 @@ class soma.BrowserContext extends soma.Context
         @jar = jar.jar
 
     begin: ->
-        @results = soma.router.run(@path, @)
-        for result in @results
+        results = soma.router.run(@path, @)
+        for result in results
             if result instanceof soma.Chunk
-                result.load(this)
+                @chunk = result
+                while @chunk.parent
+                    @chunk = new @chunk.parent
+                        child: @chunk
+                        
+                @chunk.load(this)
+                break
         
         @render() if not @lazy
         return
         
-    render: -> soma.render.call(this, @results)
+    render: ->
+        if not @chunk
+            throw new Error('No chunk specified')
+            
+        else
+            @chunk.on 'complete', => $('body').html(@chunk.html)
+        
+        return        
 

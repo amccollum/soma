@@ -14,7 +14,7 @@ escapeXML = (s) ->
             when '<' then return '&lt;'
             when '>' then return '&gt;'
             else return s
-
+            
 
 class Element
     isVoid: ->
@@ -24,22 +24,52 @@ class Element
             param: true, command: true, keygen: true, source: true,
         }
         
-    constructor: (@tag, @attributes, @text) ->
-        if tag in ['img', 'script']
-            @url = attributes.src or attributes['data-src']
-        else
-            @url = attributes.href or attributes['data-href']
-
+    constructor: (@tag, @attributes={}, @text='') ->
+    
+    headerKey: ->
+        switch @tag
+            when 'meta'
+                if 'charset' of @attributes then 'meta-charset'
+                else if 'name' of @attributes then "meta-name-#{@attributes.name}"
+                else if 'http-equiv' of @attributes then "meta-http-#{@attributes['http-equiv']}"
+                
+            when 'title' then 'title'
+            when 'link' then "link-#{@attributes.rel}-#{@attributes.href}"
+            when 'script' then "script-#{@attributes.src}"
+            when 'style' then "style-#{@attributes['data-href']}"
+    
     toString: ->
         html = "<#{@tag}"
         for name, value of @attributes
             html += " #{name}=\"#{escapeXML(value)}\""
         
-        html += if not @text and @isVoid() then ' />' else ">#{@text or ''}</#{@tag}>"
+        html += if not @text and @isVoid() then ' />' else ">#{@text}</#{@tag}>"
         return html
 
 
 class soma.Chunk extends soma.Chunk
+    loadElement: (tag, attributes, text, callback) ->
+        el = new Element(tag, attributes, text)
+        @context.addHeadElement(el)
+
+        callback() if callback
+        return el
+    
+    setTitle: (title) ->
+        return @loadElement 'title', {}, title
+    
+    setMetaHeader: (attributes, content) ->
+        if typeof attributes is 'string'
+            attributes = { 'http-equiv': attributes, content: content }
+
+        return @loadElement 'meta', attributes
+        
+    setMeta: (attributes, content) ->
+        if typeof attributes is 'string'
+            attributes = { name: attributes, content: content }
+
+        return @loadElement 'meta', attributes
+        
     loadScript: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
@@ -52,9 +82,12 @@ class soma.Chunk extends soma.Chunk
             attributes['data-src'] = attributes.src
             delete attributes.src
             
-        @context.addHeadElement(new Element('script', attributes, text))        
-        callback() if callback
-        return
+        else
+            attributes['defer'] = 'defer'
+            attributes['data-loading'] = 'loading'
+            attributes['onload'] = "this.removeAttribute('data-loading');"
+                        
+        return @loadElement 'script', attributes, text, callback
         
     loadStylesheet: (attributes) ->
         if typeof attributes is 'string'
@@ -65,34 +98,37 @@ class soma.Chunk extends soma.Chunk
             text = soma.files[attributes.href]
             attributes['data-href'] = attributes.href
             delete attributes.href
-            
+        else
+            attributes.rel = 'stylesheet'
+
         attributes.type = 'text/css'
-        attributes.rel = 'stylesheet'
         attributes.charset = 'utf8'
 
-        @context.addHeadElement(new Element('link', attributes, text))
-        return
+        return @loadElement 'link', attributes, text
 
     loadTemplate: (attributes) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
-        if @context.inlineTemplates
-            text = soma.files[attributes.src]
-            attributes['data-src'] = attributes.src
-            delete attributes.src
-
+        # Templates must be inlined, otherwise they won't load
+        text = soma.files[attributes.src]
+        attributes['data-src'] = attributes.src
+        delete attributes.src
+            
         attributes.type = 'text/plain'
         attributes.charset = 'utf8'
 
-        @context.addHeadElement(new Element('script', attributes, text))
+        @loadElement 'script', attributes, text
         return text
 
     loadImage: (attributes) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
             
-        return new Element('img', attributes)
+        attributes['data-loading'] = 'loading'
+        attributes['onload'] = "this.removeAttribute('data-loading');"
+
+        return @loadElement 'img', attributes
 
     loadData: (options) ->
         result = {}
@@ -122,7 +158,6 @@ class soma.Chunk extends soma.Chunk
     
 
 class soma.ClientContext extends soma.Context
-    inlineTemplates: true
     inlineScripts: false
     inlineStylesheets: false
     
@@ -132,16 +167,23 @@ class soma.ClientContext extends soma.Context
             @[key] = urlParsed[key]
 
         @jar = new jar.Jar(@request, @response, ['$ecret']) # FIX THIS!
-        @head = []
-        @seen = {}
+        @head = {}
         
-    addHeadElement: (element) ->
-        return if element.url in @seen
+        defaultHead = [
+            new Element('title')
+            new Element('meta', { charset: 'utf-8' })
+            new Element('script', { src: '/ender.js', type: 'text/javascript', charset: 'utf8' })
+        ]
         
-        @seen[element.url] = true
-        @head.push(element)
+        for el in defaultHead
+            @addHeadElement(el)
+    
+    addHeadElement: (el) ->
+        if el.headerKey()
+            @head[el.headerKey()] = el
+            
         return
-
+    
     begin: () ->
         switch @request.headers['content-type']
             when undefined, 'application/x-www-form-urlencoded' then @_readUrlEncoded()
@@ -151,15 +193,35 @@ class soma.ClientContext extends soma.Context
         return
         
     route: (@data) ->
-        @results = soma.router.run(@path, @)
-        for result in @results
+        results = soma.router.run(@path, @)
+        for result in results
             if result instanceof soma.Chunk
-                result.load(this)
+                chunk = result
+                while chunk.parent
+                    chunk = new chunk.parent
+                        child: chunk
+                        
+                chunk.load(this)
+                break
         
-        @render()
+        if not chunk
+            @send(404)
+            
+        else
+            chunk.on 'complete', =>
+                @send """
+                    <!doctype html>
+                    <html>
+                    <head>
+                        #{(value for key, value of @head).join('\n    ')}
+                    </head>
+                    <body>
+                        #{chunk.html}
+                    </body>
+                    </html>
+                """
+        
         return
-        
-    render: -> soma.render.call(this, @results)
         
     send: (statusCode, body, contentType) ->
         if typeof statusCode isnt 'number'

@@ -26,7 +26,6 @@ collect = (cls, fn, ob) ->
         
     return
 
-soma.pages = (ob) -> collect(soma.Page, soma.pages, ob)
 soma.chunks = (ob) -> collect(soma.Chunk, soma.chunks, ob)
 soma.views = (ob) -> collect(soma.View, soma.views, ob)
 
@@ -38,7 +37,6 @@ decamelize = (s) -> s and s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 
 
 # Placeholder classes to inherit from
-class soma.Page
 class soma.Context
 
 
