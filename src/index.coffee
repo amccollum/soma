@@ -134,8 +134,10 @@ class soma.Chunk extends soma.Widget
         else if typeof chunk is 'string'
             chunk = new soma.chunks[chunk](options)
     
-        chunk.on 'complete', @wait()
-        chunk.load(@context)
+        if not chunk.html
+            chunk.on 'complete', @wait()
+            chunk.load(@context)
+            
         return chunk
 
 

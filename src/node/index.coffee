@@ -151,31 +151,15 @@ class soma.ClientContext extends soma.Context
         return
         
     route: (@data) ->
-        results = soma.router.run(@path, @)
-        
-        for result in results
+        @results = soma.router.run(@path, @)
+        for result in @results
             if result instanceof soma.Chunk
-                @chunk = result
-                @chunk.load(this)
-                
-            else if result instanceof soma.Page
-                @page = result
+                result.load(this)
         
         @render()
-
         return
         
-    render: ->
-        if @chunk
-            @page or= new soma.pages.Default
-            
-            if @chunk.html
-                @page.render(@chunk)
-            else
-                @chunk.on 'complete', => @page.render(@chunk)
-
-        else
-            @send(404)
+    render: -> soma.render.call(this, @results)
         
     send: (statusCode, body, contentType) ->
         if typeof statusCode isnt 'number'

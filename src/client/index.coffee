@@ -137,30 +137,13 @@ class soma.BrowserContext extends soma.Context
         @jar = jar.jar
 
     begin: ->
-        results = soma.router.run(@path, @)
-        
-        for result in results
+        @results = soma.router.run(@path, @)
+        for result in @results
             if result instanceof soma.Chunk
-                @chunk = result
-                @chunk.load(this)
-            else if result instanceof soma.Page
-                @page = result
+                result.load(this)
         
-        if not @lazy
-            @render()
-            
+        @render() if not @lazy
         return
         
-    render: ->
-        if @chunk
-            @page or= new soma.pages.Default
-            
-            if @chunk.html
-                @page.render(@chunk)
-            else
-                @chunk.on 'complete', => @page.render(@chunk)
-
-        else
-            throw "Every route needs to return both a chunk and a page"
-
+    render: -> soma.render.call(this, @results)
 
