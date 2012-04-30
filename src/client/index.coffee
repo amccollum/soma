@@ -196,9 +196,9 @@ class soma.BrowserContext extends soma.Context
     render: ->
         if not @chunk
             throw new Error('No chunk specified')
-            
+        
         else
             @chunk.on 'complete', => $('body').html(@chunk.html)
         
-        return        
+        return
 

@@ -72,6 +72,7 @@ class soma.Chunk extends soma.Widget
         super
 
         @data = @options.data or {}
+        @child = @options.child
         @errors = []
         @waiting = 0
 
