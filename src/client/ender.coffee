@@ -26,7 +26,7 @@ $.ender({
 }, true)
 
 origin = document.location
-soma.context = soma.BrowserContext(origin)
+soma.context = new soma.BrowserContext(origin)
 
 $('document').ready ->
     window.onpopstate = () ->
