@@ -82,10 +82,18 @@ soma.init = function() {
     load(path.normalize(source), false, true);
   }
   server = http.createServer(function(request, response) {
-    var context;
+    var content, contentLength, contentType, context;
     if (request.url in soma.files) {
-      response.setHeader('Content-Type', mime.lookup(request.url));
-      return response.end(soma.files[request.url]);
+      contentType = mime.lookup(request.url);
+      content = soma.files[request.url];
+      if (content instanceof Buffer) {
+        contentLength = content.length;
+      } else {
+        contentLength = Buffer.byteLength(content);
+      }
+      response.setHeader('Content-Type', contentType);
+      response.setHeader('Content-Length', contentLength);
+      return response.end(content);
     } else {
       context = new soma.ClientContext(request, response);
       return context.begin();

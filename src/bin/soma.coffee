@@ -65,8 +65,17 @@ soma.init = () ->
 
     server = http.createServer (request, response) ->
         if request.url of soma.files
-            response.setHeader('Content-Type', mime.lookup(request.url))
-            response.end(soma.files[request.url])
+            contentType = mime.lookup(request.url)
+            content = soma.files[request.url]
+            
+            if content instanceof Buffer
+                contentLength = content.length
+            else
+                contentLength = Buffer.byteLength(content)
+            
+            response.setHeader('Content-Type', contentType)
+            response.setHeader('Content-Length', contentLength)
+            response.end(content)
             
         else
             context = new soma.ClientContext(request, response)

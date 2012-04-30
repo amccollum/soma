@@ -237,6 +237,7 @@ class soma.ClientContext extends soma.Context
 
         if body instanceof Buffer
             contentType or= 'application/octet-stream'
+            contentLength = body.length
     
         else
             if typeof body is 'object'
@@ -244,10 +245,12 @@ class soma.ClientContext extends soma.Context
                 contentType or= 'application/json'
             else
                 contentType or= 'text/html'
+                
+            contentLength = Buffer.byteLength(body)
 
         @response.statusCode = statusCode
         @response.setHeader('Content-Type', contentType)
-        @response.setHeader('Content-Length', Buffer.byteLength(body))
+        @response.setHeader('Content-Length', contentLength)
         @response.end(body)
         return
         
