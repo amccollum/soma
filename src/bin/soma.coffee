@@ -19,6 +19,9 @@ load = (source, exec, serve) ->
         abs = "#{process.cwd()}/#{source}"
         url = "/#{source}"
         
+        if url in soma.files
+            continue
+            
         watcher = fs.watch source, ->
             if not path.existsSync source
                 console.log('Module went missing: ', source)
@@ -54,7 +57,7 @@ soma.init = () ->
     for source in packageJSON.soma.shared
         load(path.normalize(source), true, true)
 
-    for source in packageJSON.soma.node
+    for source in packageJSON.soma.server
         load(path.normalize(source), true, false)
 
     for source in packageJSON.soma.client

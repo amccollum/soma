@@ -40,6 +40,7 @@ $.ender({
 }, true)
 
 origin = document.location
+soma.context = null
 
 $('document').ready ->
     window.onpopstate = () ->
@@ -48,8 +49,8 @@ $('document').ready ->
             origin = null
             return
             
-        context = new soma.BrowserContext(document.location)
-        context.begin()
+        soma.context = new soma.BrowserContext(document.location)
+        soma.context.begin()
         return
         
     $.enhance()

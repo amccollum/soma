@@ -65,26 +65,6 @@ class soma.Widget extends soma.EventMonitor
         super
         
 
-class soma.View extends soma.Widget
-    events: ['create', 'destroy']
-
-    constructor: ->
-        super
-
-        @name = decamelize(@constructor.name)
-
-        @el = soma.$(@options.el)
-        @el.data(@name, this)
-        @el.one 'remove', (event) =>
-            if event.target is @el[0]
-                @el.data(@name, null)
-                @emit('destroy')
-        
-        @emit('create')
-
-    $: (selector) -> soma.$(selector, @el)
-
-
 class soma.Chunk extends soma.Widget
     events: ['prepare', 'loading', 'ready', 'error', 'build', 'complete']
 
