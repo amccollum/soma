@@ -37,10 +37,6 @@ extend = (ob1, ob2) ->
 decamelize = (s) -> s and s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 
 
-# Placeholder classes to inherit from
-class soma.Context
-class soma.View
-
 class soma.EventMonitor extends events.EventEmitter
     events: []
     constructor: (options) ->
@@ -65,6 +61,36 @@ class soma.Widget extends soma.EventMonitor
             
         super
         
+
+# Placeholder class to inherit from
+class soma.Context
+    
+
+# View is only used client-side
+class soma.View extends soma.View
+    events: ['create', 'destroy']
+
+    constructor: ->
+        super
+        
+        # Convenience methods
+        @context = @options.context or soma.context
+        @cookies = @context.jar
+        @go = => @context.go.apply(@context, arguments)
+
+        @name = decamelize(@constructor.name)
+
+        @el = $(@options.el)
+        @el.data(@name, this)
+        @el.one 'remove', (event) =>
+            if event.target is @el[0]
+                @el.data(@name, null)
+                @emit('destroy')
+        
+        @emit('create')
+
+    $: (selector) -> $(selector, @el)
+
 
 class soma.Chunk extends soma.Widget
     events: ['prepare', 'loading', 'ready', 'error', 'build', 'complete']

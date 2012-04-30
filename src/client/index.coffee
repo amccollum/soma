@@ -153,31 +153,6 @@ class soma.Chunk extends soma.Chunk
         return result
 
 
-class soma.View extends soma.View
-    events: ['create', 'destroy']
-
-    constructor: ->
-        super
-        
-        # Convenience methods
-        @context = @options.context or soma.context
-        @cookies = @context.jar
-        @go = => @context.go.apply(@context, arguments)
-
-        @name = decamelize(@constructor.name)
-
-        @el = $(@options.el)
-        @el.data(@name, this)
-        @el.one 'remove', (event) =>
-            if event.target is @el[0]
-                @el.data(@name, null)
-                @emit('destroy')
-        
-        @emit('create')
-
-    $: (selector) -> $(selector, @el)
-
-
 class soma.BrowserContext extends soma.Context
     constructor: (@url, @lazy) ->
         @jar = jar.jar
