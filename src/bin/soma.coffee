@@ -20,7 +20,7 @@ load = (source, exec, serve) ->
         url = "/#{source}"
         
         if url in soma.files
-            continue
+            return
             
         watcher = fs.watch source, ->
             if not path.existsSync source

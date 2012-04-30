@@ -32,7 +32,7 @@ load = function(source, exec, serve) {
     abs = "" + (process.cwd()) + "/" + source;
     url = "/" + source;
     if (__indexOf.call(soma.files, url) >= 0) {
-      continue;
+      return;
     }
     watcher = fs.watch(source, function() {
       var encoding, _ref;
