@@ -38,7 +38,7 @@ decamelize = (s) -> s and s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 
 # Placeholder classes to inherit from
 class soma.Context
-
+class soma.View
 
 class soma.EventMonitor extends events.EventEmitter
     events: []

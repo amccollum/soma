@@ -153,7 +153,7 @@ class soma.Chunk extends soma.Chunk
         return result
 
 
-class soma.View extends soma.Widget
+class soma.View extends soma.View
     events: ['create', 'destroy']
 
     constructor: ->
@@ -162,7 +162,7 @@ class soma.View extends soma.Widget
         @context = soma.context
         @name = decamelize(@constructor.name)
 
-        @el = soma.$(@options.el)
+        @el = $(@options.el)
         @el.data(@name, this)
         @el.one 'remove', (event) =>
             if event.target is @el[0]
@@ -171,7 +171,7 @@ class soma.View extends soma.Widget
         
         @emit('create')
 
-    $: (selector) -> soma.$(selector, @el)
+    $: (selector) -> $(selector, @el)
 
 
 class soma.BrowserContext extends soma.Context
