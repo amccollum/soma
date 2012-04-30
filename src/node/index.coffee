@@ -251,7 +251,7 @@ class soma.ClientContext extends soma.Context
         console.log(err.stack) if err
         @send(500, body)
 
-    redirect: (path) ->
+    go: (path) ->
         @response.statusCode = 303
         @response.setHeader('Location', path)
         @response.end()
@@ -304,6 +304,6 @@ class soma.InternalContext extends soma.Context
         console.log(err.stack) if err
         @send(500, body)
 
-    redirect: (path) -> @parent.redirect(path)
+    go: (path) -> @parent.go(path)
     
 

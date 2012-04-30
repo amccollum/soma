@@ -81,6 +81,10 @@ class soma.Chunk extends soma.Widget
             @emit('complete')
 
     load: (@context) ->
+        # Convenience methods
+        @cookies = @context.jar
+        @go = => @context.go.apply(@context, arguments)
+
         if not @status
             # Give time to bind event handlers
             setTimeout(@wait(), 1)

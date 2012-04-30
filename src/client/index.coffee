@@ -159,7 +159,11 @@ class soma.View extends soma.View
     constructor: ->
         super
         
-        @context = soma.context
+        # Convenience methods
+        @context = @options.context or soma.context
+        @cookies = @context.jar
+        @go = => @context.go.apply(@context, arguments)
+
         @name = decamelize(@constructor.name)
 
         @el = $(@options.el)
@@ -200,5 +204,19 @@ class soma.BrowserContext extends soma.Context
         else
             @chunk.on 'complete', => $('body').html(@chunk.html)
         
+        return
+
+    go: (path, replace) ->
+        if history.pushState
+            if replace
+                history.replaceState({}, "", path)
+            else
+                history.pushState({}, "", path)
+                window.onpopstate()
+
+        else
+            # if we don't have pushState, we need to load a new Chunk
+            document.location = path
+    
         return
 
