@@ -20,7 +20,8 @@ collect = (cls, fn, ob) ->
             item = class extends cls
                 for key, value of item
                     @::[key] = value
-                    
+        
+        item::_src = soma._src
         item.name or= name
         fn[name] = item
         

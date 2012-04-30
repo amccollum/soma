@@ -48,6 +48,10 @@ class Element
 
 
 class soma.Chunk extends soma.Chunk
+    load: ->
+        super
+        @loadScript(@_src) if @_src
+            
     loadElement: (tag, attributes, text, callback) ->
         el = new Element(tag, attributes, text)
         @context.addHeadElement(el)

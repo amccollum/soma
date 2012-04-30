@@ -1,6 +1,6 @@
 {
     "name": "soma",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "A hybrid client/server web framework",
     "keywords": ["framework", "ender"],
     "author": "Andrew McCollum <amccollum@gmail.com>",
