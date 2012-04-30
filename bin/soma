@@ -43,7 +43,7 @@ load = function(source, exec, serve) {
       }
       try {
         if (serve) {
-          if ((_ref = mime.lookup(source).slice(0, 4)) === 'text' || _ref === 'appl') {
+          if ((_ref = mime.lookup(source).slice(0, 4)) === 'text') {
             encoding = 'utf8';
           }
           return soma.files[url] = fs.readFileSync(source, encoding);

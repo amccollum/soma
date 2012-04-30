@@ -30,7 +30,7 @@ load = (source, exec, serve) ->
                 
             try
                 if serve
-                    if mime.lookup(source).slice(0, 4) in ['text', 'appl']
+                    if mime.lookup(source).slice(0, 4) in ['text']
                         encoding = 'utf8'
 
                     soma.files[url] = fs.readFileSync(source, encoding)
