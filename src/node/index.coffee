@@ -218,11 +218,12 @@ class soma.ClientContext extends soma.Context
         
         if body instanceof soma.Chunk
             chunk = result
-            while chunk.parent
-                chunk = new chunk.parent
-                    child: chunk
+            while chunk.meta
+                chunk = chunk.meta()
                     
             chunk.on 'complete', =>
+                chunk.emit('render')
+                
                 @send """
                     <!doctype html>
                     <html>

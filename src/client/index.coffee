@@ -159,26 +159,39 @@ class soma.BrowserContext extends soma.Context
 
     begin: ->
         results = soma.router.run(@path, @)
-        for result in results
-            if result instanceof soma.Chunk
-                @chunk = result
-                while @chunk.parent
-                    @chunk = new @chunk.parent
-                        child: @chunk
-                        
-                @chunk.load(this)
-                break
+        if not results.length
+            throw new Error('No routes matched')
+
+        else
+            for result in results
+                if result instanceof soma.Chunk
+                    @send(chunk)
         
+        return
+
+    send: (chunk) ->
+        if chunk not instanceof soma.Chunk
+            throw new Error('Must send chunks')
+        else if @chunk
+            throw new Error('Cannot send multiple chunks')
+        
+        @chunk = chunk
+        while @chunk.meta
+            @chunk = @chunk.meta()
+
+        @chunk.load(this)
         @render() if not @lazy
         return
         
     render: ->
         if not @chunk
-            throw new Error('No chunk specified')
+            throw new Error('No chunk loaded')
         
-        else
-            @chunk.on 'complete', => $('body').html(@chunk.html)
-        
+        fn = =>
+            @chunk.emit('render')
+            $('body').html(@chunk.html)
+            
+        if @chunk.html then fn() else @chunk.on 'complete', fn
         return
 
     go: (path, replace) ->

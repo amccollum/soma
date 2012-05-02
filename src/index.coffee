@@ -93,13 +93,12 @@ class soma.View extends soma.Widget
 
 
 class soma.Chunk extends soma.Widget
-    events: ['prepare', 'loading', 'ready', 'error', 'build', 'complete']
+    events: ['prepare', 'loading', 'ready', 'error', 'build', 'complete', 'render']
 
     constructor: ->
         super
 
         @data = @options.data or {}
-        @child = @options.child
         @errors = []
         @waiting = 0
 
