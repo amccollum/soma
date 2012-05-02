@@ -130,7 +130,7 @@ class soma.Chunk extends soma.Chunk
             options.headers['Content-Type'] = 'application/json'
             options.data = JSON.stringify(options.data)
             
-        done = wait()
+        done = @wait()
         _success = options.success
         _error = options.error
         
