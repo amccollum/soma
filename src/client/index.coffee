@@ -165,7 +165,7 @@ class soma.BrowserContext extends soma.Context
         else
             for result in results
                 if result instanceof soma.Chunk
-                    @send(chunk)
+                    @send(result)
         
         return
 
