@@ -198,20 +198,30 @@ class soma.ClientContext extends soma.Context
         
     route: (@data) ->
         results = soma.router.run(@path, @)
-        for result in results
-            if result instanceof soma.Chunk
-                chunk = result
-                while chunk.parent
-                    chunk = new chunk.parent
-                        child: chunk
-                        
-                chunk.load(this)
-                break
-        
-        if not chunk
+        if not results.length
             @send(404)
-            
+
         else
+            for result in results
+                if result instanceof soma.Chunk
+                    @send(chunk)
+        
+        return
+        
+    send: (statusCode, body, contentType) ->
+        if typeof statusCode isnt 'number'
+            contentType = body
+            body = statusCode
+            statusCode = 200
+        
+        body or= ''
+        
+        if body instanceof soma.Chunk
+            chunk = result
+            while chunk.parent
+                chunk = new chunk.parent
+                    child: chunk
+                    
             chunk.on 'complete', =>
                 @send """
                     <!doctype html>
@@ -224,16 +234,9 @@ class soma.ClientContext extends soma.Context
                     </body>
                     </html>
                 """
-        
-        return
-        
-    send: (statusCode, body, contentType) ->
-        if typeof statusCode isnt 'number'
-            contentType = body
-            body = statusCode
-            statusCode = 200
-        
-        body or= ''
+            
+            chunk.load(this)
+            return
 
         if body instanceof Buffer
             contentType or= 'application/octet-stream'

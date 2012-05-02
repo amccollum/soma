@@ -81,7 +81,8 @@ soma.init = () ->
             context = new soma.ClientContext(request, response)
             context.begin()
 
-    server.listen(packageJSON.soma.port or 8000)
-    console.log("Soma listening on port #{packageJSON.soma.port or 8000}...")
+    port = process.env.PORT or packageJSON.soma.port or 8000
+    server.listen(port)
+    console.log("Soma listening on port #{port}...")
 
 soma.init()

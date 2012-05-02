@@ -63,7 +63,7 @@ load = function(source, exec, serve) {
 };
 
 soma.init = function() {
-  var packageJSON, server, source, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2;
+  var packageJSON, port, server, source, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2;
   soma.files = {};
   packageJSON = JSON.parse(fs.readFileSync('package.json'));
   _ref = packageJSON.soma.shared;
@@ -99,8 +99,9 @@ soma.init = function() {
       return context.begin();
     }
   });
-  server.listen(packageJSON.soma.port || 8000);
-  return console.log("Soma listening on port " + (packageJSON.soma.port || 8000) + "...");
+  port = process.env.PORT || packageJSON.soma.port || 8000;
+  server.listen(port);
+  return console.log("Soma listening on port " + port + "...");
 };
 
 soma.init();
