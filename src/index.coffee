@@ -39,10 +39,9 @@ decamelize = (s) -> s and s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
 
 class soma.EventMonitor extends events.EventEmitter
     events: []
-    constructor: (options) ->
+    constructor: ->
         for event in @events
             @on event, @[event] if event of @
-            @on event, options[event] if event of options
 
 
 class soma.Widget extends soma.EventMonitor
@@ -98,13 +97,8 @@ class soma.Chunk extends soma.Widget
     constructor: ->
         super
 
-        @data = @options.data or {}
         @errors = []
         @waiting = 0
-
-        if @options.html
-            @html = @options.html
-            @emit('complete')
 
     load: (@context) ->
         # Convenience methods
@@ -114,7 +108,7 @@ class soma.Chunk extends soma.Widget
         if not @status
             # Give time to bind event handlers
             setTimeout(@wait(), 1)
-            @emit('prepare', @data)
+            @emit('prepare', @options)
 
     toString: -> @html
 
