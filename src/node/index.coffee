@@ -217,7 +217,7 @@ class soma.ClientContext extends soma.Context
         body or= ''
         
         if body instanceof soma.Chunk
-            chunk = result
+            chunk = body
             while chunk.meta
                 chunk = chunk.meta()
                     
