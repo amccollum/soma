@@ -25,17 +25,17 @@ $.ender({
 
 }, true)
 
-origin = document.location
+origin = document.location.pathname
 soma.context = new soma.BrowserContext(origin)
 
 $('document').ready ->
     window.onpopstate = () ->
         # ignore the popstate event on page-load in Safari and Chrome
-        if document.location == origin
+        if document.location.pathname == origin
             origin = null
             return
             
-        soma.context = new soma.BrowserContext(document.location)
+        soma.context = new soma.BrowserContext(document.location.pathname)
         soma.context.begin()
         return
         

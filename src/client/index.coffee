@@ -154,7 +154,7 @@ class soma.Chunk extends soma.Chunk
 
 
 class soma.BrowserContext extends soma.Context
-    constructor: (@url, @lazy) ->
+    constructor: (@path, @lazy) ->
         @jar = jar.jar
 
     begin: ->
