@@ -34,6 +34,7 @@ class soma.Chunk extends soma.Chunk
                 else
                     # Load manually using AJAX
                     el.attr("data-#{urlAttr}", url)
+                    delete attributes[urlAttr]
 
                     $.ajax
                         method: 'GET'
@@ -52,7 +53,7 @@ class soma.Chunk extends soma.Chunk
             # We don't need to load dataURLs
             if url and url.substr(0, 5) != 'data:'
                 el.attr('data-loading', 'loading')
-                el.bind 'load error', => el.attr('data-loading', null)
+                el.bind 'load error', => el.removeAttr('data-loading')
                 
             el.attr(attributes)
 
