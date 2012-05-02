@@ -37,7 +37,7 @@ class soma.Chunk extends soma.Chunk
 
                     $.ajax
                         method: 'GET'
-                        url: "#{url}?#{Math.random()}"
+                        url: "#{url}"
                         type: 'html'
 
                         success: (text) =>
