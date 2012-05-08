@@ -85,7 +85,7 @@ soma.init = function() {
   _ref3 = packageJSON.soma.init;
   for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
     source = _ref3[_l];
-    scripts.extend(load(path.normalize(source), false, true));
+    scripts = scripts.concat(load(path.normalize(source), false, true));
   }
   server = http.createServer(function(request, response) {
     var content, contentLength, contentType, context;

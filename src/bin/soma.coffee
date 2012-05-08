@@ -73,7 +73,7 @@ soma.init = () ->
 
     scripts = []
     for source in packageJSON.soma.init
-        scripts.extend(load(path.normalize(source), false, true))
+        scripts = scripts.concat(load(path.normalize(source), false, true))
 
     server = http.createServer (request, response) ->
         if request.url of soma.files
