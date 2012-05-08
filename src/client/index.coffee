@@ -191,6 +191,7 @@ class soma.BrowserContext extends soma.Context
         fn = =>
             @chunk.emit('render')
             $('body').html(@chunk.html)
+            $.enhance()
             
         if @chunk.html then fn() else @chunk.on 'complete', fn
         return

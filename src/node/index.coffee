@@ -320,6 +320,5 @@ class soma.InternalContext extends soma.Context
         console.log(err.stack) if err
         @send(500, body)
 
-    go: (path) -> @parent.go(path)
-    
+    go: (path) -> @parent.go(path)    
 
