@@ -17,7 +17,7 @@ load = (source, exec, serve) ->
             if name[0] == '.'
                 continue
                 
-            urls.extend(load("#{source}/#{name}", exec, serve))
+            urls = urls.concat(load("#{source}/#{name}", exec, serve))
         
         return urls
         
