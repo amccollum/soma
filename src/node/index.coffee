@@ -165,23 +165,28 @@ class soma.ClientContext extends soma.Context
     inlineScripts: false
     inlineStylesheets: false
     
-    constructor: (@request, @response) ->
+    constructor: (@request, @response, scripts) ->
         urlParsed = url.parse(@request.url, true)
         for key of urlParsed
             @[key] = urlParsed[key]
 
-        @jar = new jar.Jar(@request, @response, ['$ecret']) # FIX THIS!
+        @cookies = new jar.Jar(@request, @response, ['$ecret']) # FIX THIS!
         @head = {}
         
-        defaultHead = [
-            new Element('title')
-            new Element('meta', { charset: 'utf-8' })
-            new Element('script', { src: '/ender.js', type: 'text/javascript', charset: 'utf8' })
-        ]
+        @addHeadElement(new Element('title'))
+        @addHeadElement(new Element('meta', { charset: 'utf-8' }))
         
-        for el in defaultHead
-            @addHeadElement(el)
-    
+        for url in scripts
+            attributes =
+                src: url
+                type: 'text/javascript'
+                charset: 'utf8'
+                defer: 'defer'
+                onload: "this.removeAttribute('data-loading');"
+                'data-loading': 'loading'
+                
+            @addHeadElement(new Element('script', attributes))
+        
     addHeadElement: (el) ->
         if el.headerKey()
             @head[el.headerKey()] = el
@@ -294,7 +299,7 @@ class soma.ClientContext extends soma.Context
 
 class soma.InternalContext extends soma.Context
     constructor: (@parent, @options) ->
-        @jar = @parent.jar
+        @cookies = @parent.cookies
     
     begin: -> soma.router.run(@options.url, @)
 

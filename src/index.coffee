@@ -74,7 +74,7 @@ class soma.View extends soma.Widget
         
         # Convenience methods
         @context = @options.context or soma.context
-        @cookies = @context.jar
+        @cookies = @context.cookies
         @go = => @context.go.apply(@context, arguments)
 
         @name = decamelize(@constructor.name)
@@ -102,7 +102,7 @@ class soma.Chunk extends soma.Widget
 
     load: (@context) ->
         # Convenience methods
-        @cookies = @context.jar
+        @cookies = @context.cookies
         @go = => @context.go.apply(@context, arguments)
 
         if not @status

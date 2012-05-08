@@ -10,11 +10,17 @@ load = (source, exec, serve) ->
     
     if stats.isDirectory()
 
+        urls = []
         names = fs.readdirSync(source)
-    
+
         for name in names
-            load("#{source}/#{name}", exec, serve) if name[0] != '.'
-            
+            if name[0] == '.'
+                continue
+                
+            urls.extend(load("#{source}/#{name}", exec, serve))
+        
+        return urls
+        
     else
         abs = "#{process.cwd()}/#{source}"
         url = "/#{source}"
@@ -47,6 +53,8 @@ load = (source, exec, serve) ->
             soma._src = url
             m = require(abs)
             soma._src = null
+            
+        return [url]
 
 
 soma.init = () ->
@@ -63,6 +71,10 @@ soma.init = () ->
     for source in packageJSON.soma.client
         load(path.normalize(source), false, true)
 
+    scripts = []
+    for source in packageJSON.soma.init
+        scripts.extend(load(path.normalize(source), false, true))
+
     server = http.createServer (request, response) ->
         if request.url of soma.files
             contentType = mime.lookup(request.url)
@@ -78,7 +90,7 @@ soma.init = () ->
             response.end(content)
             
         else
-            context = new soma.ClientContext(request, response)
+            context = new soma.ClientContext(request, response, scripts)
             context.begin()
 
     port = process.env.PORT or packageJSON.soma.port or 8000

@@ -156,7 +156,7 @@ class soma.Chunk extends soma.Chunk
 
 class soma.BrowserContext extends soma.Context
     constructor: (@path, @lazy) ->
-        @jar = jar.jar
+        @cookies = jar.jar
 
     begin: ->
         results = soma.router.run(@path, @)

@@ -14,20 +14,19 @@ mime = require('../lib/node/lib/mime');
 soma = require('soma');
 
 load = function(source, exec, serve) {
-  var abs, m, name, names, stats, url, watcher, _i, _len, _results;
+  var abs, m, name, names, stats, url, urls, watcher, _i, _len;
   stats = fs.statSync(source);
   if (stats.isDirectory()) {
+    urls = [];
     names = fs.readdirSync(source);
-    _results = [];
     for (_i = 0, _len = names.length; _i < _len; _i++) {
       name = names[_i];
-      if (name[0] !== '.') {
-        _results.push(load("" + source + "/" + name, exec, serve));
-      } else {
-        _results.push(void 0);
+      if (name[0] === '.') {
+        continue;
       }
+      urls.extend(load("" + source + "/" + name, exec, serve));
     }
-    return _results;
+    return urls;
   } else {
     abs = "" + (process.cwd()) + "/" + source;
     url = "/" + source;
@@ -57,13 +56,14 @@ load = function(source, exec, serve) {
     if (exec && source.slice(-3) === '.js') {
       soma._src = url;
       m = require(abs);
-      return soma._src = null;
+      soma._src = null;
     }
+    return [url];
   }
 };
 
 soma.init = function() {
-  var packageJSON, port, server, source, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2;
+  var packageJSON, port, scripts, server, source, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
   soma.files = {};
   packageJSON = JSON.parse(fs.readFileSync('package.json'));
   _ref = packageJSON.soma.shared;
@@ -81,6 +81,12 @@ soma.init = function() {
     source = _ref2[_k];
     load(path.normalize(source), false, true);
   }
+  scripts = [];
+  _ref3 = packageJSON.soma.init;
+  for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
+    source = _ref3[_l];
+    scripts.extend(load(path.normalize(source), false, true));
+  }
   server = http.createServer(function(request, response) {
     var content, contentLength, contentType, context;
     if (request.url in soma.files) {
@@ -95,7 +101,7 @@ soma.init = function() {
       response.setHeader('Content-Length', contentLength);
       return response.end(content);
     } else {
-      context = new soma.ClientContext(request, response);
+      context = new soma.ClientContext(request, response, scripts);
       return context.begin();
     }
   });
