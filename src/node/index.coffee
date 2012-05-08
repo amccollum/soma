@@ -176,9 +176,9 @@ class soma.ClientContext extends soma.Context
         @addHeadElement(new Element('title'))
         @addHeadElement(new Element('meta', { charset: 'utf-8' }))
         
-        for url in scripts
+        for script in scripts
             attributes =
-                src: url
+                src: script
                 type: 'text/javascript'
                 charset: 'utf8'
                 defer: 'defer'
