@@ -87,7 +87,7 @@ class soma.Chunk extends soma.Chunk
             delete attributes.src
             
         else
-            attributes['defer'] = 'defer'
+            # attributes['defer'] = 'defer'
             attributes['data-loading'] = 'loading'
             attributes['onload'] = "this.removeAttribute('data-loading');"
                         
@@ -181,7 +181,7 @@ class soma.ClientContext extends soma.Context
                 src: script
                 type: 'text/javascript'
                 charset: 'utf8'
-                defer: 'defer'
+                # defer: 'defer'
                 onload: "this.removeAttribute('data-loading');"
                 'data-loading': 'loading'
                 
