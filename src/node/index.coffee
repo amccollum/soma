@@ -260,6 +260,7 @@ class soma.ClientContext extends soma.Context
         @response.statusCode = statusCode
         @response.setHeader('Content-Type', contentType)
         @response.setHeader('Content-Length', contentLength)
+        @cookies.setHeaders()
         @response.end(body)
         return
         
@@ -270,8 +271,9 @@ class soma.ClientContext extends soma.Context
     go: (path) ->
         @response.statusCode = 303
         @response.setHeader('Location', path)
+        @cookies.setHeaders()
         @response.end()
-        return
+        return false
 
     _readJSON: () ->
         chunks = []

@@ -193,7 +193,7 @@ class soma.BrowserContext extends soma.Context
             $('body').html(@chunk.html)
             $.enhance()
             
-        if @chunk.html then fn() else @chunk.on 'complete', fn
+        if @chunk.status is 'complete' then fn() else @chunk.on 'complete', fn
         return
 
     go: (path, replace) ->
@@ -202,7 +202,8 @@ class soma.BrowserContext extends soma.Context
                 history.replaceState({}, "", path)
             else
                 history.pushState({}, "", path)
-                window.onpopstate()
+
+            window.onpopstate()
 
         else
             # if we don't have pushState, we need to load a new Chunk

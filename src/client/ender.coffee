@@ -29,17 +29,37 @@ origin = document.location.pathname
 soma.context = new soma.BrowserContext(origin)
 
 $('document').ready ->
-    window.onpopstate = () ->
-        # ignore the popstate event on page-load in Safari and Chrome
-        if document.location.pathname == origin
-            origin = null
-            return
+    if history.pushState
+        window.onpopstate = () ->
+            # ignore the popstate event on page-load in Safari and Chrome -- right now this doesn't work
+            path = document.location.pathname
+            if path == origin
+                origin = null
+                return
             
-        soma.context = new soma.BrowserContext(document.location.pathname)
-        soma.context.begin()
-        return
+            soma.context = new soma.BrowserContext(path)
+            soma.context.begin()
+            return
         
+        $('a:local-link(0)[data-precache != "true"]').each ->
+            path = @pathname
+
+            $(@).bind 'click', (event) ->
+                history.pushState({}, "", path)
+                window.onpopstate()
+                event.stop()
+                return
+            
+        $('a:local-link(0)[data-precache = "true"]').each ->
+            path = @pathname
+            context = new soma.BrowserContext(path, true)
+            context.begin()
+        
+            $(@).bind 'click', (event) ->
+                history.pushState({}, "", path)
+                context.render()
+                event.stop()
+                return
+                
     $.enhance()
-
-
 
