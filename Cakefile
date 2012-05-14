@@ -14,10 +14,7 @@ task 'build', 'Compile to JS', ->
         'coffee --compile --bare --output lib/node/lib src/node/lib/*.coffee'
         'coffee --compile --bare --output lib/node src/node/*.coffee'
 
-        'coffee --compile --output lib/client --join lib/client/soma.js ' + [
-            'src/client/index.coffee'
-            'src/client/ender.coffee'
-        ].join(' ')
+        'coffee --compile --bare --output lib/client src/client/*.coffee'
         
         'mkdir -p bin'
         'echo "#!/usr/bin/env node" > bin/soma'

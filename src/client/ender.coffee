@@ -1,20 +1,22 @@
+jar = require('jar')
 soma = require('soma')
 $ = ender
 
+
+# Ender additions
 $.ender({
-    view: (name, options) -> new soma.views[name](options)
-    enhance: -> $(document).enhance()
+    enhance: (context) -> $(document).enhance(context)
 })
 
 $.ender({
     view: (name, options={}) ->
         @each ->
             options.el = @
-            $.view(name, options)
+            new soma.views[name](options)
             
-    enhance: ->
+    enhance: (context) ->
         for own name, value of soma.views
-            $(value::selector, @).view(name)
+            $(value::selector, @).view(name, {context: context})
         
         return
 
@@ -25,41 +27,256 @@ $.ender({
 
 }, true)
 
-origin = document.location.pathname
-soma.context = new soma.BrowserContext(origin)
-
 $('document').ready ->
+    # We already have the HTML, but we need a context to create the views
+    context = new soma.BrowserContext(document.location.pathname)
+    $.enhance(context)
+    
+    # Implement client-side loading and precaching, when possible
     if history.pushState
-        window.onpopstate = () ->
-            # ignore the popstate event on page-load in Safari and Chrome -- right now this doesn't work
-            path = document.location.pathname
-            if path == origin
-                origin = null
+        
+        # This is to fix browsers that call popstate on page load
+        $('document').one 'load', -> history.replaceState(true, '', document.location)
+
+        window.onpopstate = (event) ->
+            # Don't do anything if this was a page load
+            if not event.state
                 return
             
-            soma.context = new soma.BrowserContext(path)
-            soma.context.begin()
-            return
+            soma.load(document.location.pathname)
         
         $('a:local-link(0)[data-precache != "true"]').each ->
             path = @pathname
 
             $(@).bind 'click', (event) ->
-                history.pushState({}, "", path)
-                window.onpopstate()
+                history.pushState(true, '', path)
+                soma.load(path)
                 event.stop()
                 return
             
         $('a:local-link(0)[data-precache = "true"]').each ->
             path = @pathname
-            context = new soma.BrowserContext(path, true)
-            context.begin()
+            context = soma.load(path, true)
         
             $(@).bind 'click', (event) ->
-                history.pushState({}, "", path)
+                history.pushState({}, '', path)
                 context.render()
                 event.stop()
                 return
                 
-    $.enhance()
 
+soma.load = (path, lazy) ->
+    context = new soma.BrowserContext(path, lazy)
+    context.begin()
+    return context
+    
+
+class soma.Chunk extends soma.Chunk
+    complete: ->
+        @el or= $(@html)
+        @el.data('view', @)
+                    
+    loadElement: (tag, attributes, text, callback) ->
+        urlAttr = (if tag in ['img', 'script'] then 'src' else 'href')
+        url = attributes[urlAttr]
+        
+        # Check if the element is already loaded (or has been pre-fetched)
+        el = $("head [#{urlAttr}=\"#{url}\"], head [data-#{urlAttr}=\"#{url}\"]") if url
+
+        if el.length
+            # See whether the element was lazy-loaded
+            if 'type' of attributes and attributes.type != el.attr('type')
+                el.detach().attr('type', attributes.type).appendTo($('head'))
+
+        else
+            # Element hasn't been created yet
+            el = $(document.createElement(tag))
+            
+            if 'type' of attributes
+                if not url
+                    # The element content is inline
+                    el.text(text)
+                    
+                else if attributes.type == 'text/javascript'
+                    el.attr('async', 'async')
+                
+                else
+                    # Load manually using AJAX
+                    el.attr("data-#{urlAttr}", url)
+                    delete attributes[urlAttr]
+
+                    $.ajax
+                        method: 'GET'
+                        url: "#{url}"
+                        type: 'html'
+
+                        success: (text) =>
+                            el.text(text)
+                            el.trigger('load')
+
+                        error: (xhr, status, e, data) =>
+                            el.trigger('error')
+
+                $('head').append(el)
+
+            # We don't need to load dataURLs
+            if url and url.substr(0, 5) != 'data:'
+                el.attr('data-loading', 'loading')
+                el.bind 'load error', => el.removeAttr('data-loading')
+                
+            el.attr(attributes)
+
+        if el.attr('data-loading')
+            done = @wait(callback)
+            el.bind 'load', =>
+                done(el)
+                
+            el.bind 'error', () =>
+                @emit('error', 'loadElement', tag, attributes, text)
+                done(el)
+                
+        else if callback
+            callback(el)
+
+        return el
+
+    setTitle: (title) ->
+        $('title').text(title)
+    
+    setMeta: (attributes, value) ->
+        if typeof attributes is 'string'
+            name = attributes
+            attributes = { name: name, value: value }
+
+        el = $("meta[name=\"#{attributes.name}\"]")
+        if not el.length
+            el = $(document.createElement('meta'))
+            $('head').append(el)
+
+        el.attr(attributes)
+        return el
+        
+    loadScript: (attributes, callback) ->
+        if typeof attributes is 'string'
+            attributes = { src: attributes }
+
+        attributes.type = 'text/javascript'
+        return @loadElement 'script', attributes, null, callback
+        
+    loadStylesheet: (attributes) ->
+        if typeof attributes is 'string'
+            attributes = { href: attributes }
+
+        attributes.type = 'text/css'
+        attributes.rel = 'stylesheet'
+        return @loadElement 'link', attributes
+        
+    loadTemplate: (attributes) ->
+        if typeof attributes is 'string'
+            attributes = { src: attributes }
+        
+        attributes.type = 'text/html'
+        el = @loadElement 'script', attributes
+        el.toString = -> el.html()
+        return el
+
+    loadImage: (attributes) ->
+        if typeof attributes is 'string'
+            attributes = { src: attributes }
+            
+        el = @loadElement 'img', attributes
+        el.toString = -> el.outerHTML()
+        return el
+    
+    loadData: (options) ->
+        result = {}
+
+        options.method or= 'GET'
+        options.type = 'json'
+        options.headers or= {}
+        
+        if options.data and typeof options.data isnt 'string'
+            options.headers['Content-Type'] = 'application/json'
+            options.data = JSON.stringify(options.data)
+            
+        done = @wait()
+        _success = options.success
+        _error = options.error
+        
+        options.success = (data) =>
+            for key in data
+                result[key] = data[key]
+
+            _success(data) if _success
+            done()
+            
+        options.error = (xhr) =>
+            if _error
+                _error(xhr.status, xhr.response, options)
+            else
+                @emit('error', 'requireData', xhr.status, xhr.response, options)
+
+            done()
+        
+        $.ajax(options)
+
+        return result
+
+
+class soma.BrowserContext extends soma.Context
+    constructor: (@path, @lazy) ->
+        @cookies = jar.jar
+
+    begin: ->
+        results = soma.router.run(@path, @)
+        if not results.length
+            throw new Error('No routes matched')
+
+        else
+            for result in results
+                if result instanceof soma.Chunk
+                    @send(result)
+        
+        return
+
+    send: (chunk) ->
+        if chunk not instanceof soma.Chunk
+            throw new Error('Must send chunks on the client')
+        else if @chunk
+            throw new Error('Cannot send multiple chunks')
+        
+        @chunk = chunk
+        while @chunk.meta
+            @chunk = @chunk.meta()
+
+        @chunk.load(this)
+        @render() if not @lazy
+        return
+        
+    render: ->
+        if not @chunk
+            throw new Error('No chunk loaded')
+        
+        done = =>
+            @chunk.emit('render')
+            $('body').html(@chunk.html)
+            $.enhance(@)
+            
+        if @chunk.status is 'complete' then done() else @chunk.on 'complete', done
+        return
+
+    go: (path, replace) ->
+        if history.pushState
+            if replace
+                history.replaceState(true, '', path)
+            else
+                history.pushState(true, '', path)
+
+            @chunk.emit('halt') if @chunk
+            soma.load(path)
+
+        else
+            # if we don't have pushState, we need to load a new Chunk
+            document.location = path
+    
+        return

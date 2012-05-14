@@ -73,7 +73,7 @@ class soma.View extends soma.Widget
         super
         
         # Convenience methods
-        @context = @options.context or soma.context
+        @context = @options.context
         @cookies = @context.cookies
         @go = => @context.go.apply(@context, arguments)
 
@@ -92,13 +92,22 @@ class soma.View extends soma.Widget
 
 
 class soma.Chunk extends soma.Widget
-    events: ['prepare', 'loading', 'ready', 'error', 'build', 'complete', 'render']
+    events: ['prepare', 'loading', 'ready', 'error', 'build', 'complete', 'render', 'halt']
 
     constructor: ->
         super
 
         @errors = []
         @waiting = 0
+
+    emit: (event) ->
+        if @status isnt 'halt'
+            super
+            
+        if event is 'halt'
+            # For garbage collection purposes
+            for event in @events
+                @removeAllListeners(event)
 
     load: (@context) ->
         # Convenience methods
@@ -127,7 +136,7 @@ class soma.Chunk extends soma.Widget
 
         return =>
             fn.apply(this, arguments) if fn
-            if not --@waiting
+            if not --@waiting and @status != 'abort'
                 @emit('ready')
 
     loadChunk: (chunk, options) ->
