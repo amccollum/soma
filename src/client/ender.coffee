@@ -9,15 +9,16 @@ $.ender({
 })
 
 $.ender({
-    view: (name, options={}) ->
-        @each ->
-            options.el = @
-            new soma.views[name](options)
-            
     enhance: (context) ->
+        views = []
         for own name, value of soma.views
-            $(value::selector, @).view(name, {context: context})
+            $(value::selector, @).each ->
+                options.el = @
+                views.push(new soma.views[name]({context: context}))
         
+        for view in views
+            view.emit('complete')
+
         return
 
     # just for fun?

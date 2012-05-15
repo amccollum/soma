@@ -67,7 +67,7 @@ class soma.Context
 
 # View is only used client-side
 class soma.View extends soma.Widget
-    events: ['create', 'destroy']
+    events: ['create', 'complete', 'destroy']
 
     constructor: ->
         super
