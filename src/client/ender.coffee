@@ -13,8 +13,7 @@ $.ender({
         views = []
         for own name, value of soma.views
             $(value::selector, @).each ->
-                options.el = @
-                views.push(new soma.views[name]({context: context}))
+                views.push(new soma.views[name]({el: @, context: context}))
         
         for view in views
             view.emit('complete')
