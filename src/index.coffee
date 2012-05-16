@@ -22,7 +22,7 @@ collect = (cls, fn, ob) ->
                     @::[key] = value
         
         item::_src = soma._src
-        item.name or= name
+        item.name = name
         fn[name] = item
         
     return
@@ -80,7 +80,7 @@ class soma.View extends soma.Widget
         @name = decamelize(@constructor.name)
 
         @el = $(@options.el)
-        @el.data(@name, this)
+        @el.data(@name, @)
         @el.one 'remove', (event) =>
             if event.target is @el[0]
                 @el.data(@name, null)

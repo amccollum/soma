@@ -191,18 +191,10 @@ class soma.Chunk extends soma.Chunk
     loadData: (options) ->
         result = {}
 
-        options.method or= 'GET'
-        options.type = 'json'
-        options.headers or= {}
-        
-        if options.data and typeof options.data isnt 'string'
-            options.headers['Content-Type'] = 'application/json'
-            options.data = JSON.stringify(options.data)
-            
         done = @wait()
         _success = options.success
         _error = options.error
-        
+
         options.success = (data) =>
             for key in data
                 result[key] = data[key]
@@ -217,8 +209,8 @@ class soma.Chunk extends soma.Chunk
                 @emit('error', 'requireData', xhr.status, xhr.response, options)
 
             done()
-        
-        $.ajax(options)
+
+        $.ajaj(options)
 
         return result
 
