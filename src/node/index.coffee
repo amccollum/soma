@@ -15,6 +15,21 @@ escapeXML = (s) ->
             when '>' then return '&gt;'
             else return s
             
+combineChunks = (chunks) ->
+    size = 0
+    for chunk in chunks
+        size += chunk.length
+
+    # Create the buffer for the file data
+    result = new Buffer(size)
+
+    size = 0
+    for chunk in chunks
+        chunk.copy(result, size, 0)
+        size += chunk.length
+
+    return result
+
 
 class Element
     isVoid: ->
@@ -293,7 +308,7 @@ class soma.ClientContext extends soma.Context
         uploadRequest.once 'file', (file) =>
             chunks = []
             file.on 'data', (chunk) => chunks.push(chunk)
-            file.on 'end', () => @route(util.combineChunks(chunks))
+            file.on 'end', () => @route(combineChunks(chunks))
         
         uploadRequest.begin()
         return

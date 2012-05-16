@@ -22,7 +22,7 @@ collect = (cls, fn, ob) ->
                     @::[key] = value
         
         item::_src = soma._src
-        item.name or= name
+        item::name = name
         fn[name] = item
         
     return
@@ -77,13 +77,13 @@ class soma.View extends soma.Widget
         @cookies = @context.cookies
         @go = => @context.go.apply(@context, arguments)
 
-        @name = decamelize(@constructor.name)
+        dataName = decamelize(@name)
 
         @el = $(@options.el)
-        @el.data(@name, this)
+        @el.data(dataName, this)
         @el.one 'remove', (event) =>
             if event.target is @el[0]
-                @el.data(@name, null)
+                @el.data(dataName, null)
                 @emit('destroy')
         
         @emit('create')

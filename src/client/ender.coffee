@@ -98,7 +98,7 @@ class soma.Chunk extends soma.Chunk
                     el.text(text)
                     
                 else if attributes.type == 'text/javascript'
-                    el.attr('async', 'async')
+                    el.attr('defer', 'defer')
                 
                 else
                     # Load manually using AJAX
