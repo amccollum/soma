@@ -55,15 +55,18 @@ $('document').ready ->
                 return
             
         $('a:local-link(0)[data-precache = "true"]').each ->
-            path = @pathname
-            context = soma.load(path, true)
-        
-            $(@).bind 'click', (event) ->
-                history.pushState({}, '', path)
-                context.render()
-                event.stop()
-                return
-                
+            $(@).bind 'click', soma.precache(@pathname)
+            return
+
+
+soma.precache = (path) ->
+    context = soma.load(path, true)
+    return (event) ->
+        history.pushState({}, '', path)
+        context.render()
+        event.stop() if event
+        return
+
 
 soma.load = (path, lazy) ->
     context = new soma.BrowserContext(path, lazy)
