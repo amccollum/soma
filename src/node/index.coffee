@@ -209,7 +209,9 @@ class soma.ClientContext extends soma.Context
         return
     
     begin: () ->
-        switch @request.headers['content-type']
+        contentType = @request.headers['content-type']
+        contentType = contentType.split(/;/)[0] if contentType
+        switch contentType
             when undefined, 'application/x-www-form-urlencoded' then @_readUrlEncoded()
             when 'application/json' then @_readJSON()
             when 'application/octet-stream', 'multipart/form-data' then @_readFiles()
