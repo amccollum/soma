@@ -45,7 +45,7 @@ $('document').ready ->
             
             soma.load(document.location.pathname)
         
-        $('a:local-link(0)[data-precache != "true"]').each ->
+        $('a[data-precache != "true"]:local-link(0)').each ->
             path = @pathname
 
             $(@).bind 'click', (event) ->
@@ -54,7 +54,7 @@ $('document').ready ->
                 event.stop()
                 return
             
-        $('a:local-link(0)[data-precache = "true"]').each ->
+        $('a[data-precache = "true"]:local-link(0)').each ->
             $(@).bind 'click', soma.precache(@pathname)
             return
 
