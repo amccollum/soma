@@ -212,7 +212,7 @@ class soma.ClientContext extends soma.Context
         return
         
     addManifest: (src) ->
-        @manifest = src
+        @manifest = "manifest=#{src}"
     
     begin: () ->
         contentType = @request.headers['content-type']
@@ -254,7 +254,7 @@ class soma.ClientContext extends soma.Context
                 
                 @send """
                     <!doctype html>
-                    <html #{"manifest=#{@manifest}" if @manifest}>
+                    <html #{@manifest or ''}>
                     <head>
                         #{(value for key, value of @head).join('\n    ')}
                     </head>
