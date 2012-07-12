@@ -60,12 +60,20 @@ $('document').ready ->
 
 
 soma.precache = (path) ->
-    context = soma.load(path, true)
-    return (event) ->
-        history.pushState({}, '', path)
-        context.render()
-        event.stop() if event
-        return
+    if history.pushState
+        context = soma.load(path, true)
+        return (event) ->
+            history.pushState({}, '', context.path)
+            context.render()
+            event.stop() if event
+            return
+            
+    else
+        return (event) ->
+            # only use doc.location if the path is different
+            if @pathname != path
+                document.location = path
+                event.stop() if event
 
 
 soma.load = (path, lazy) ->
@@ -249,6 +257,8 @@ class soma.BrowserContext extends soma.Context
         return
         
     render: ->
+        @lazy = false
+        
         if not @chunk
             throw new Error('No chunk loaded')
         
@@ -262,13 +272,18 @@ class soma.BrowserContext extends soma.Context
 
     go: (path, replace) ->
         if history.pushState
-            if replace
-                history.replaceState(true, '', path)
-            else
-                history.pushState(true, '', path)
+            if not @lazy
+                if replace
+                    history.replaceState(true, '', path)
+                else
+                    history.pushState(true, '', path)
 
-            @chunk.emit('halt') if @chunk
-            soma.load(path)
+            if @chunk
+                @chunk.emit('halt')
+                @chunk = null
+                
+            @path = path
+            @begin()
 
         else
             # if we don't have pushState, we need to load a new Chunk
