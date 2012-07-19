@@ -2,7 +2,7 @@ jar = require('jar')
 querystring = require('querystring')
 url = require('url')
 
-upload = require('./lib/upload')
+multipart = require('./lib/multipart')
 
 soma = require('..')
 
@@ -169,7 +169,7 @@ class soma.Chunk extends soma.Chunk
             if _error
                 _error(status, response, options)
             else
-                @emit('error', 'requireData', status, response, options)
+                @emit('error', 'loadData', status, response, options)
 
             done()
     
@@ -214,13 +214,15 @@ class soma.ClientContext extends soma.Context
     addManifest: (src) ->
         @manifest = "manifest=#{src}"
     
-    begin: () ->
+    begin: ->
         contentType = @request.headers['content-type']
         contentType = contentType.split(/;/)[0] if contentType
         switch contentType
-            when undefined, 'application/x-www-form-urlencoded' then @_readUrlEncoded()
+            when undefined then @route({})
+            when 'application/x-www-form-urlencoded' then @_readUrlEncoded()
             when 'application/json' then @_readJSON()
-            when 'application/octet-stream', 'multipart/form-data' then @_readFiles()
+            when 'application/octet-stream' then @_readBinary()
+            when 'multipart/form-data' then @_readFormData()
         
         return
         
@@ -252,7 +254,7 @@ class soma.ClientContext extends soma.Context
 
             while @chunk.meta
                 @chunk = @chunk.meta()
-                    
+            
             @chunk.on 'complete', =>
                 @chunk.emit('render')
                 
@@ -284,6 +286,9 @@ class soma.ClientContext extends soma.Context
                 
             contentLength = Buffer.byteLength(body)
 
+        if not @cookies.get('_csrf', {raw: true})
+            @cookies.set('_csrf', Math.random().toString().substr(2), {raw: true})
+
         @response.statusCode = statusCode
         @response.setHeader('Content-Type', contentType)
         @response.setHeader('Content-Length', contentLength)
@@ -306,27 +311,61 @@ class soma.ClientContext extends soma.Context
         @response.end()
         return false
 
-    _readJSON: () ->
+    _readJSON: ->
         chunks = []
         @request.on 'data', (chunk) => chunks.push(chunk)
-        @request.on 'end', () => @route(JSON.parse(chunks.join("")))
-        return
-    
-    _readUrlEncoded: () ->
-        chunks = []
-        @request.on 'data', (chunk) => chunks.push(chunk)
-        @request.on 'end', () => @route(querystring.parse(chunks.join("")))
-        return
-    
-    _readFiles: () ->
-        uploadRequest = new upload.UploadRequest(@request)
+        @request.on 'end', () =>
+            if @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
+                @route(JSON.parse(chunks.join('')))
+            else
+                @sendError(null, 'Bad/missing _csrf token.')
 
-        uploadRequest.once 'file', (file) =>
-            chunks = []
-            file.on 'data', (chunk) => chunks.push(chunk)
-            file.on 'end', () => @route(combineChunks(chunks))
+        return
+    
+    _readBinary: ->
+        chunks = []
+        data = {}
+
+        @request.on 'data', (chunk) => chunks.push(chunk)
+        @request.on 'end', =>
+            if @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
+                data[@request.headers['x-file-name']] = combineChunks(chunks)
+                @route(data)
+            else
+                @sendError(null, 'Bad/missing _csrf token.')
+            
+    _readUrlEncoded: ->
+        chunks = []
+        @request.on 'data', (chunk) => chunks.push(chunk)
+        @request.on 'end', () =>
+            data = querystring.parse(chunks.join(''))
+            if data._csrf == @cookies.get('_csrf', {raw: true})
+                delete data._csrf
+                @route(data)
+            else
+                @sendError(null, 'Bad/missing _csrf token.')
+
+        return
         
-        uploadRequest.begin()
+    _readFormData: ->
+        chunks = []
+        data = {}
+
+        formData = new multipart.formData(@request)
+        
+        formData.on 'stream', (stream) =>
+            chunks = []
+            stream.on 'data', (chunk) => chunks.push(chunk)
+            stream.on 'end', () => data[stream.name] = combineChunks(chunks)
+        
+        formData.on 'end', () =>
+            if data._csrf == @cookies.get('_csrf', {raw: true})
+                delete data._csrf
+                @route(data)
+            else
+                @sendError(null, 'Bad/missing _csrf token.')
+
+        formData.begin()
         return
 
 

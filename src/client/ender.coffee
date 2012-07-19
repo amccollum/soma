@@ -205,6 +205,9 @@ class soma.Chunk extends soma.Chunk
         done = @wait()
         _success = options.success
         _error = options.error
+        
+        options.headers or= {}
+        options.headers['X-CSRF-Token'] = @cookies.get('_csrf')
 
         options.success = (data) =>
             for key in data
@@ -217,7 +220,7 @@ class soma.Chunk extends soma.Chunk
             if _error
                 _error(xhr.status, xhr.response, options)
             else
-                @emit('error', 'requireData', xhr.status, xhr.response, options)
+                @emit('error', 'loadData', xhr.status, xhr.response, options)
 
             done()
 

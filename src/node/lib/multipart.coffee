@@ -1,5 +1,69 @@
 events = require('events')
 
+class exports.FormData extends events.EventEmitter
+    constructor: (@request) ->
+    begin: () ->
+        boundary = @request.headers['content-type'].match(/boundary=([^]+)/i)[1]
+        parser = new MultipartParser(boundary)
+
+        headerField = null
+        headerValue = null
+        stream = null
+
+        parser.on 'partBegin', () =>
+            stream = new stream.Stream
+            stream.headers = {}
+            stream.filename = null
+            headerField = ''
+            headerValue = ''
+
+        parser.on 'headerField', (b, start, end) =>
+            headerField += b.toString('utf-8', start, end)
+
+        parser.on 'headerValue', (b, start, end) =>
+            headerValue += b.toString('utf-8', start, end)
+
+        parser.on 'headerEnd', () =>
+            stream.headers[headerField.toLowerCase()] = headerValue
+            headerField = ''
+            headerValue = ''
+
+        parser.on 'headersEnd', () =>
+            if stream.headers['content-disposition']
+                stream.readable = true
+
+                contentDisposition = stream.headers['content-disposition']                    
+                if m = contentDisposition.match(/name="([^]+)"/i)[1]
+                    steam.name = m[1]
+
+                if m = contentDisposition.match(/filename="([^]+)"/i)
+                    stream.headers['content-type'] = 'application/octet-stream'
+                    stream.filename = m[1].substr(m[1].lastIndexOf('\\') + 1)
+                
+                @emit('stream', stream)
+
+        parser.on 'partData', (b, start, end) =>
+            if stream
+                stream.emit('data', b.slice(start, end))
+
+        parser.on 'partEnd', () =>
+            if stream
+                stream.readable = false
+                stream.emit('end')
+
+        @request.on 'data', (chunk) => parser.write(chunk)
+        @request.on 'end', () =>
+            parser.end()
+            @emit('end')
+
+        @request.on 'error', (error) =>
+            if stream
+                stream.readable = false
+                stream.emit('error', error)
+
+
+#-------- MultipartParser --------#
+
 s = 0
 S = {
     PARSER_UNINITIALIZED: s++,
@@ -39,7 +103,7 @@ for key of S
     exports[key] = S[key]
 
 
-class exports.MultipartParser extends events.EventEmitter
+class MultipartParser extends events.EventEmitter
     constructor: (str) -> @initWithBoundary(str) if str?
 
     initWithBoundary: (str) ->
@@ -57,7 +121,7 @@ class exports.MultipartParser extends events.EventEmitter
 
     end: () ->
         if @state != S.END
-            return new Error('MultipartParser.end(): stream ended unexpectedly')
+            throw new Error('MultipartParser.end(): stream ended unexpectedly')
 
     write: (buffer) ->
         i = 0
@@ -238,5 +302,3 @@ class exports.MultipartParser extends events.EventEmitter
         @flags = flags
 
         return bufferLength
-
-
