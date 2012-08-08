@@ -247,16 +247,16 @@ class soma.ClientContext extends soma.Context
         body or= ''
         
         if body instanceof soma.Chunk
-            if @chunk
+            if @chunks
                 throw new Error('Cannot send multiple chunks')
 
-            @chunk = body
+            @chunks = [body]
 
-            while @chunk.meta
-                @chunk = @chunk.meta()
+            while @chunks[0].meta
+                @chunks.unshift(@chunks[0].meta())
             
-            @chunk.on 'complete', =>
-                @chunk.emit('render')
+            @chunks[0].on 'complete', =>
+                @chunks[0].emit('render')
                 
                 @send """
                     <!doctype html>
@@ -265,12 +265,12 @@ class soma.ClientContext extends soma.Context
                         #{(value for key, value of @head).join('\n    ')}
                     </head>
                     <body>
-                        #{@chunk.html}
+                        #{@chunks[0].html}
                     </body>
                     </html>
                 """
             
-            @chunk.load(this)
+            @chunks[0].load(this)
             return
 
         if body instanceof Buffer
@@ -301,9 +301,11 @@ class soma.ClientContext extends soma.Context
         @send(500, body)
 
     go: (path) ->
-        if @chunk
-            @chunk.emit('halt')
-            @chunk = null
+        if @chunks
+            for chunk in @chunks
+                chunk.emit('halt')
+                
+            @chunks = null
             
         @response.statusCode = 303
         @response.setHeader('Location', path)

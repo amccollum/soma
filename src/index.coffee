@@ -106,6 +106,7 @@ class soma.Chunk extends soma.Widget
             
         if event is 'halt'
             # For garbage collection purposes
+            super
             for event in @events
                 @removeAllListeners(event)
 
