@@ -237,14 +237,17 @@ class soma.BrowserContext extends soma.Context
         @cookies = jar.jar
 
     begin: ->
-        results = soma.router.run(@path, @)
-        if not results.length
-            throw new Error('No routes matched')
+        try
+            @results = soma.router.run(@path, @)
+        catch e
 
-        else
-            for result in results
-                if result instanceof soma.Chunk
+        if @results and @results.length
+            for @result in results
+                if @result instanceof soma.Chunk
                     @send(result)
+                    
+        else
+            @render() if not @lazy
         
         return
 
@@ -266,7 +269,8 @@ class soma.BrowserContext extends soma.Context
         @lazy = false
         
         if not @chunk
-            throw new Error('No chunk loaded')
+            document.location = @path
+            return
         
         done = =>
             @chunk.emit('render')
