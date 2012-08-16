@@ -228,6 +228,11 @@ class soma.ClientContext extends soma.Context
         
     route: (@data) ->
         results = soma.router.run(@path, @)
+
+        # Allow for a default route
+        if not results.length
+            results = soma.router.run(null, @)
+        
         if not results.length
             @send(404)
 
