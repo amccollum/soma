@@ -18,6 +18,9 @@ $.ender({
         for view in views
             view.emit('complete')
 
+        for form in $('form')
+            $(form).append("<input type=\"hidden\" name=\"_csrf\" value=\"#{$.cookie('_csrf')}\" />")
+
         return
 
     # just for fun?
