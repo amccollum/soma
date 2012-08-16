@@ -71,7 +71,7 @@ class soma.Chunk extends soma.Chunk
         el = new Element(tag, attributes, text)
         @context.addHeadElement(el)
 
-        callback() if callback
+        callback(el) if callback
         return el
     
     setTitle: (title) ->
@@ -111,7 +111,7 @@ class soma.Chunk extends soma.Chunk
                         
         return @loadElement 'script', attributes, text, callback
         
-    loadStylesheet: (attributes) ->
+    loadStylesheet: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { href: attributes }
 
@@ -126,9 +126,9 @@ class soma.Chunk extends soma.Chunk
         attributes.type = 'text/css'
         attributes.charset = 'utf8'
 
-        return @loadElement 'link', attributes, text
+        return @loadElement 'link', attributes, text, callback
 
-    loadTemplate: (attributes) ->
+    loadTemplate: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
@@ -140,24 +140,24 @@ class soma.Chunk extends soma.Chunk
         attributes.type = 'text/plain'
         attributes.charset = 'utf8'
 
-        @loadElement 'script', attributes, text
+        @loadElement 'script', attributes, text, callback
         return text
 
-    loadImage: (attributes) ->
+    loadImage: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
             
         attributes['data-loading'] = 'loading'
         attributes['onload'] = "this.removeAttribute('data-loading');"
 
-        return @loadElement 'img', attributes
+        return @loadElement 'img', attributes, callback
 
-    loadData: (options) ->
+    loadData: (options, callback) ->
         result = {}
         _success = options.success
         _error = options.error
     
-        done = @wait()
+        done = @wait(callback)
         options.success = (data) =>
             for key in data
                 result[key] = data[key]
@@ -175,8 +175,7 @@ class soma.Chunk extends soma.Chunk
     
         context = new soma.InternalContext(@context, options)
         context.begin()
-
-        return result
+        return
     
 
 class soma.ClientContext extends soma.Context
@@ -228,6 +227,7 @@ class soma.ClientContext extends soma.Context
         
     route: (@data) ->
         results = soma.router.run(@path, @)
+        
         if not results.length
             @send(404)
 
@@ -286,8 +286,8 @@ class soma.ClientContext extends soma.Context
                 
             contentLength = Buffer.byteLength(body)
 
-        if not @cookies.get('_csrf', {raw: true})
-            @cookies.set('_csrf', Math.random().toString().substr(2), {raw: true})
+        if not @cookies.get('_csrf_token', {raw: true})
+            @cookies.set('_csrf_token', Math.random().toString().substr(2), {raw: true})
 
         @response.statusCode = statusCode
         @response.setHeader('Content-Type', contentType)
@@ -315,10 +315,10 @@ class soma.ClientContext extends soma.Context
         chunks = []
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
-            if @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
+            if @request.headers['x-csrf-token'] == @cookies.get('_csrf_token', {raw: true})
                 @route(JSON.parse(chunks.join('')))
             else
-                @sendError(null, 'Bad/missing _csrf token.')
+                @sendError(null, 'Bad/missing CSRF token.')
 
         return
     
@@ -328,22 +328,22 @@ class soma.ClientContext extends soma.Context
 
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', =>
-            if @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
+            if @request.headers['x-csrf-token'] == @cookies.get('_csrf_token', {raw: true})
                 data[@request.headers['x-file-name']] = combineChunks(chunks)
                 @route(data)
             else
-                @sendError(null, 'Bad/missing _csrf token.')
+                @sendError(null, 'Bad/missing CSRF token.')
             
     _readUrlEncoded: ->
         chunks = []
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
             data = querystring.parse(chunks.join(''))
-            if data._csrf == @cookies.get('_csrf', {raw: true})
-                delete data._csrf
+            if data._csrf_token == @cookies.get('_csrf_token', {raw: true})
+                delete data._csrf_token
                 @route(data)
             else
-                @sendError(null, 'Bad/missing _csrf token.')
+                @sendError(null, 'Bad/missing CSRF token.')
 
         return
         
@@ -359,11 +359,11 @@ class soma.ClientContext extends soma.Context
             stream.on 'end', () => data[stream.name] = combineChunks(chunks)
         
         formData.on 'end', () =>
-            if data._csrf == @cookies.get('_csrf', {raw: true})
-                delete data._csrf
+            if data._csrf_token == @cookies.get('_csrf_token', {raw: true})
+                delete data._csrf_token
                 @route(data)
             else
-                @sendError(null, 'Bad/missing _csrf token.')
+                @sendError(null, 'Bad/missing CSRF token.')
 
         formData.begin()
         return

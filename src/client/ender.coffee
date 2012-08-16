@@ -8,6 +8,7 @@ $.ender({
     enhance: (context) -> $(document).enhance(context)
 })
 
+
 $.ender({
     enhance: (context) ->
         views = []
@@ -80,7 +81,7 @@ soma.load = (path, lazy) ->
     context = new soma.BrowserContext(path, lazy)
     context.begin()
     return context
-    
+
 
 class soma.Chunk extends soma.Chunk
     complete: ->
@@ -137,17 +138,19 @@ class soma.Chunk extends soma.Chunk
                 
             el.attr(attributes)
 
-        if el.attr('data-loading')
-            done = @wait(callback)
-            el.bind 'load', =>
-                done(el)
-                
-            el.bind 'error', () =>
-                @emit('error', 'loadElement', tag, attributes, text)
-                done(el)
-                
-        else if callback
-            callback(el)
+        if callback
+            if not el.attr('data-loading')
+                callback(el)
+            
+            else
+                done = @wait()
+                el.bind 'load', =>
+                    callback(el)
+                    done()
+            
+                el.bind 'error', () =>
+                    @emit('error', 'loadElement', tag, attributes, text)
+                    done()
 
         return el
 
@@ -174,46 +177,48 @@ class soma.Chunk extends soma.Chunk
         attributes.type = 'text/javascript'
         return @loadElement 'script', attributes, null, callback
         
-    loadStylesheet: (attributes) ->
+    loadStylesheet: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { href: attributes }
 
         attributes.type = 'text/css'
         attributes.rel = 'stylesheet'
-        return @loadElement 'link', attributes
+        return @loadElement 'link', attributes, null, callback
         
-    loadTemplate: (attributes) ->
+    loadTemplate: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
         
         attributes.type = 'text/html'
-        el = @loadElement 'script', attributes
+        el = @loadElement 'script', attributes, null, callback
         el.toString = -> el.html()
         return el
 
-    loadImage: (attributes) ->
+    loadImage: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
             
-        el = @loadElement 'img', attributes
+        el = @loadElement 'img', attributes, null, callback
         el.toString = -> el.outerHTML()
         return el
     
-    loadData: (options) ->
-        result = {}
-
+    loadData: (options, data, callback) ->
+        if typeof options is 'string'
+            options = { method: 'GET', url: options }
+            
+        if typeof data not in ['string', 'object']
+            callback = data
+                
         done = @wait()
         _success = options.success
         _error = options.error
         
         options.headers or= {}
-        options.headers['X-CSRF-Token'] = @cookies.get('_csrf')
+        options.headers['X-CSRF-Token'] = @cookies.get('_csrf_token')
 
         options.success = (data) =>
-            for key in data
-                result[key] = data[key]
-
             _success(data) if _success
+            callback(data) if callback
             done()
             
         options.error = (xhr) =>
@@ -224,9 +229,7 @@ class soma.Chunk extends soma.Chunk
 
             done()
 
-        $.ajaj(options)
-
-        return result
+        return
 
 
 class soma.BrowserContext extends soma.Context
@@ -267,7 +270,7 @@ class soma.BrowserContext extends soma.Context
         
         done = =>
             @chunk.emit('render')
-            $('body').html(@chunk.html)
+            $('body').unbind().html(@chunk.html)
             $.enhance(@)
             
         if @chunk.status is 'complete' then done() else @chunk.on 'complete', done
