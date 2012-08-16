@@ -317,7 +317,7 @@ class soma.ClientContext extends soma.Context
         chunks = []
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
-            if @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
+            if @request.method == 'GET' or @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
                 @route(JSON.parse(chunks.join('')))
             else
                 @sendError(null, 'Bad/missing _csrf token.')
@@ -341,7 +341,7 @@ class soma.ClientContext extends soma.Context
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
             data = querystring.parse(chunks.join(''))
-            if data._csrf == @cookies.get('_csrf', {raw: true})
+            if @request.method == 'GET' or data._csrf == @cookies.get('_csrf', {raw: true})
                 delete data._csrf
                 @route(data)
             else
