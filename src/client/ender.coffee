@@ -1,4 +1,3 @@
-jar = require('jar')
 soma = require('soma')
 $ = ender
 
@@ -19,7 +18,7 @@ $.ender({
             view.emit('complete')
 
         for form in $('form')
-            $(form).append("<input type=\"hidden\" name=\"_csrf\" value=\"#{$.cookie('_csrf', {raw: true})}\" />")
+            $(form).append("<input type=\"hidden\" name=\"_csrf\" value=\"#{$.jar.get('_csrf', {raw:true})}\" />")
 
         return
 
@@ -157,6 +156,21 @@ class soma.Chunk extends soma.Chunk
     setTitle: (title) ->
         $('title').text(title)
     
+    setIcon: (attributes) ->
+        if typeof attributes is 'string'
+            attributes = { href: attributes }
+
+        attributes.rel or= 'icon'
+        attributes.type or= 'image/png'
+
+        el = $("link[rel=\"#{attributes.rel}\"][href=\"#{attributes.href}\"]")
+        if not el.length
+            el = $(document.createElement('link'))
+            $('head').append(el)
+
+        el.attr(attributes)
+        return el
+
     setMeta: (attributes, value) ->
         if typeof attributes is 'string'
             name = attributes
@@ -234,7 +248,7 @@ class soma.Chunk extends soma.Chunk
 
 class soma.BrowserContext extends soma.Context
     constructor: (@path, @lazy) ->
-        @cookies = jar.jar
+        @cookies = $.jar
 
     begin: ->
         try

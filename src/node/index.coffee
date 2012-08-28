@@ -81,8 +81,8 @@ class soma.Chunk extends soma.Chunk
         if typeof attributes is 'string'
             attributes = { href: attributes }
 
-        attributes.rel = 'icon'
-        attributes.type = 'image/png'
+        attributes.rel or= 'icon'
+        attributes.type or= 'image/png'
         return @loadElement 'link', attributes
 
     setMetaHeader: (attributes, content) ->
