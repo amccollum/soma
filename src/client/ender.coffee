@@ -242,8 +242,8 @@ class soma.BrowserContext extends soma.Context
         catch e
 
         if @results and @results.length
-            for @result in results
-                if @result instanceof soma.Chunk
+            for result in @results
+                if result instanceof soma.Chunk
                     @send(result)
                     
         else
