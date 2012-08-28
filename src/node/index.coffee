@@ -77,6 +77,14 @@ class soma.Chunk extends soma.Chunk
     setTitle: (title) ->
         return @loadElement 'title', {}, title
     
+    setIcon: (attributes) ->
+        if typeof attributes is 'string'
+            attributes = { href: attributes }
+
+        attributes.rel = 'icon'
+        attributes.type = 'image/png'
+        return @loadElement 'link', attributes, text
+
     setMetaHeader: (attributes, content) ->
         if typeof attributes is 'string'
             attributes = { 'http-equiv': attributes, content: content }
