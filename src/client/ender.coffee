@@ -19,7 +19,7 @@ $.ender({
             view.emit('complete')
 
         for form in $('form')
-            $(form).append("<input type=\"hidden\" name=\"_csrf\" value=\"#{$.cookie('_csrf')}\" />")
+            $(form).append("<input type=\"hidden\" name=\"_csrf\" value=\"#{$.cookie('_csrf', {raw: true})}\" />")
 
         return
 
@@ -210,7 +210,7 @@ class soma.Chunk extends soma.Chunk
         _error = options.error
         
         options.headers or= {}
-        options.headers['X-CSRF-Token'] = @cookies.get('_csrf')
+        options.headers['X-CSRF-Token'] = @cookies.get('_csrf', {raw: true})
 
         options.success = (data) =>
             for key in data
