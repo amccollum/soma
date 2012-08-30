@@ -93,7 +93,7 @@ soma.init = function() {
   return serverDomain.run(function() {
     var port, server;
     server = http.createServer(function(request, response) {
-      var content, contentLength, contentType, context, requestDomain;
+      var requestDomain;
       requestDomain = domain.create();
       requestDomain.add(request);
       requestDomain.add(response);
@@ -110,21 +110,24 @@ soma.init = function() {
           return requestDomain.dispose();
         }
       });
-      if (request.url in soma.files) {
-        contentType = mime.lookup(request.url);
-        content = soma.files[request.url];
-        if (content instanceof Buffer) {
-          contentLength = content.length;
+      return requestDomain.run(function() {
+        var content, contentLength, contentType, context;
+        if (request.url in soma.files) {
+          contentType = mime.lookup(request.url);
+          content = soma.files[request.url];
+          if (content instanceof Buffer) {
+            contentLength = content.length;
+          } else {
+            contentLength = Buffer.byteLength(content);
+          }
+          response.setHeader('Content-Type', contentType);
+          response.setHeader('Content-Length', contentLength);
+          return response.end(content);
         } else {
-          contentLength = Buffer.byteLength(content);
+          context = new soma.ClientContext(request, response, scripts);
+          return context.begin();
         }
-        response.setHeader('Content-Type', contentType);
-        response.setHeader('Content-Length', contentLength);
-        return response.end(content);
-      } else {
-        context = new soma.ClientContext(request, response, scripts);
-        return context.begin();
-      }
+      });
     });
     port = process.env.PORT || packageJSON.soma.port || 8000;
     server.listen(port);

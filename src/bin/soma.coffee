@@ -94,22 +94,23 @@ soma.init = () ->
                     console.error('Error sending 500', request.url, err)
                     requestDomain.dispose()
 
-            if request.url of soma.files
-                contentType = mime.lookup(request.url)
-                content = soma.files[request.url]
+            requestDomain.run ->
+                if request.url of soma.files
+                    contentType = mime.lookup(request.url)
+                    content = soma.files[request.url]
             
-                if content instanceof Buffer
-                    contentLength = content.length
+                    if content instanceof Buffer
+                        contentLength = content.length
+                    else
+                        contentLength = Buffer.byteLength(content)
+            
+                    response.setHeader('Content-Type', contentType)
+                    response.setHeader('Content-Length', contentLength)
+                    response.end(content)
+            
                 else
-                    contentLength = Buffer.byteLength(content)
-            
-                response.setHeader('Content-Type', contentType)
-                response.setHeader('Content-Length', contentLength)
-                response.end(content)
-            
-            else
-                context = new soma.ClientContext(request, response, scripts)
-                context.begin()
+                    context = new soma.ClientContext(request, response, scripts)
+                    context.begin()
 
         port = process.env.PORT or packageJSON.soma.port or 8000
         server.listen(port)
