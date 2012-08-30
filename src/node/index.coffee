@@ -235,16 +235,7 @@ class soma.ClientContext extends soma.Context
         return
         
     route: (@data) ->
-        try
-            results = soma.router.run(@path, @)
-            
-        catch e
-            if e and e.stack
-                console.log(e.stack)
-            else
-                console.log('ERROR', e)
-                
-            results = []
+        results = soma.router.run(@path, @)
 
         # Allow for a default route
         if not results.length

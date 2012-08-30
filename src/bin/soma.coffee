@@ -1,3 +1,4 @@
+domain = require('domain')
 http = require('http')
 fs = require('fs')
 path = require('path')
@@ -75,26 +76,43 @@ soma.init = () ->
     for source in packageJSON.soma.init
         scripts = scripts.concat(load(path.normalize(source), false, true))
 
-    server = http.createServer (request, response) ->
-        if request.url of soma.files
-            contentType = mime.lookup(request.url)
-            content = soma.files[request.url]
-            
-            if content instanceof Buffer
-                contentLength = content.length
-            else
-                contentLength = Buffer.byteLength(content)
-            
-            response.setHeader('Content-Type', contentType)
-            response.setHeader('Content-Length', contentLength)
-            response.end(content)
-            
-        else
-            context = new soma.ClientContext(request, response, scripts)
-            context.begin()
+    serverDomain = domain.create()
+    serverDomain.run ->
+        server = http.createServer (request, response) ->
+            requestDomain = domain.create()
+            requestDomain.add(request)
+            requestDomain.add(response)            
+            requestDomain.on 'error', (err) ->
+                console.error('Error', request.url, err?.stack or err)
 
-    port = process.env.PORT or packageJSON.soma.port or 8000
-    server.listen(port)
-    console.log("Soma listening on port #{port}...")
+                try
+                    response.statusCode = 500
+                    response.end('Error occurred, sorry.')
+                    response.on 'close', -> requestDomain.dispose()
+                    
+                catch err
+                    console.error('Error sending 500', request.url, err)
+                    requestDomain.dispose()
+
+            if request.url of soma.files
+                contentType = mime.lookup(request.url)
+                content = soma.files[request.url]
+            
+                if content instanceof Buffer
+                    contentLength = content.length
+                else
+                    contentLength = Buffer.byteLength(content)
+            
+                response.setHeader('Content-Type', contentType)
+                response.setHeader('Content-Length', contentLength)
+                response.end(content)
+            
+            else
+                context = new soma.ClientContext(request, response, scripts)
+                context.begin()
+
+        port = process.env.PORT or packageJSON.soma.port or 8000
+        server.listen(port)
+        console.log("Soma listening on port #{port}...")
 
 soma.init()

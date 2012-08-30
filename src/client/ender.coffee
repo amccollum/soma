@@ -251,9 +251,7 @@ class soma.BrowserContext extends soma.Context
         @cookies = $.jar
 
     begin: ->
-        try
-            @results = soma.router.run(@path, @)
-        catch e
+        @results = soma.router.run(@path, @)
 
         if @results and @results.length
             for result in @results
