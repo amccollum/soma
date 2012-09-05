@@ -50,7 +50,10 @@ class Element
                 
             when 'title' then 'title'
             when 'link' then "link-#{@attributes.rel}-#{@attributes.href}"
-            when 'script' then "script-#{@attributes.src}"
+            when 'script'
+                if @attributes.src then "script-#{@attributes.src}"
+                else "script-#{@text}"
+                
             when 'style' then "style-#{@attributes['data-href']}"
     
     toString: ->
@@ -71,7 +74,7 @@ class soma.Chunk extends soma.Chunk
         el = new Element(tag, attributes, text)
         @context.addHeadElement(el)
 
-        callback() if callback
+        callback(el) if callback
         return el
     
     setTitle: (title) ->

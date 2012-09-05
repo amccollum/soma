@@ -96,7 +96,7 @@ class soma.Chunk extends soma.Chunk
         # Check if the element is already loaded (or has been pre-fetched)
         el = $("head [#{urlAttr}=\"#{url}\"], head [data-#{urlAttr}=\"#{url}\"]") if url
 
-        if el.length
+        if el and el.length
             # See whether the element was lazy-loaded
             if 'type' of attributes and attributes.type != el.attr('type')
                 el.detach().attr('type', attributes.type).appendTo($('head'))
