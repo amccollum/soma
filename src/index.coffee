@@ -30,6 +30,20 @@ collect = (cls, fn, ob) ->
 soma.chunks = (ob) -> collect(soma.Chunk, soma.chunks, ob)
 soma.views = (ob) -> collect(soma.View, soma.views, ob)
 
+soma.lookup = (scope, name) ->
+    scope = scope.split('/').slice(1)
+    
+    checkScope = (tree, scope) ->
+        if scope.length
+            cur = scope.shift()
+            result = checkScope(tree[cur], scope)
+            return result if result
+            
+        return tree[name]
+    
+    return checkScope(soma.tree, scope)
+
+
 extend = (ob1, ob2) ->
     for key, value of ob2
         ob1[key] = value

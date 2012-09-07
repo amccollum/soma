@@ -279,6 +279,10 @@ class soma.ClientContext extends soma.Context
                     <html #{@manifest or ''}>
                     <head>
                         #{(value for key, value of @head).join('\n    ')}
+
+                        <script type='text/javascript'>
+                            soma.tree = #{JSON.stringify(soma.tree)};
+                        </script>
                     </head>
                     <body>
                         #{@chunks[0].html}

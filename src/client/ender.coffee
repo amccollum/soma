@@ -199,11 +199,11 @@ class soma.Chunk extends soma.Chunk
         attributes.rel = 'stylesheet'
         return @loadElement 'link', attributes
         
-    loadTemplate: (attributes) ->
-        if typeof attributes is 'string'
-            attributes = { src: attributes }
-        
-        attributes.type = 'text/html'
+    loadTemplate: (name) ->
+        attributes =
+            src: soma.lookup(name)
+            type: 'text/html'
+            
         el = @loadElement 'script', attributes
         el.toString = -> el.html()
         return el

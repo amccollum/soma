@@ -6,6 +6,31 @@ path = require('path')
 mime = require('../lib/node/lib/mime')
 soma = require('soma')
 
+loadFiles = (source, tree={}) ->
+    if fs.statSync(source).isDirectory()
+        watcher = fs.watch source, ->
+            if not path.existsSync(source)
+                console.log('Directory went missing: ', source)
+                delete tree[basename]
+                watcher.close()
+                return
+
+            for name in fs.readdirSync(source)
+                if name[0] == '.'
+                    continue
+
+                tree[name] = loadFiles("#{source}/#{name}")
+
+        watcher.emit('change')
+        return tree
+
+    else
+        abs = "#{process.cwd()}/#{source}"
+        url = "/#{source}"
+        
+        soma.files[url] = fs.readFileSync(source, encoding)
+        return url
+
 load = (source, exec, serve) ->
     stats = fs.statSync(source)
     
@@ -61,19 +86,26 @@ load = (source, exec, serve) ->
 soma.init = () ->
     soma.files = {}
     
-    packageJSON = JSON.parse(fs.readFileSync('package.json'))
+    soma.config = JSON.parse(fs.readFileSync('package.json')).soma
+    soma.config.chunks or= 'chunks'
 
-    for source in packageJSON.soma.shared
+    soma.tree = {}
+    loadFiles(soma.config.chunks, soma.tree)
+    
+    if soma.config.templates
+        loadFiles(soma.config.templates, soma.tree)
+    
+    for source in soma.config.shared
         load(path.normalize(source), true, true)
 
-    for source in packageJSON.soma.server
+    for source in soma.config.server
         load(path.normalize(source), true, false)
 
-    for source in packageJSON.soma.client
+    for source in soma.config.client
         load(path.normalize(source), false, true)
 
     scripts = []
-    for source in packageJSON.soma.init
+    for source in soma.config.init
         scripts = scripts.concat(load(path.normalize(source), false, true))
 
     serverDomain = domain.create()
@@ -112,7 +144,7 @@ soma.init = () ->
                     context = new soma.ClientContext(request, response, scripts)
                     context.begin()
 
-        port = process.env.PORT or packageJSON.soma.port or 8000
+        port = process.env.PORT or soma.config.port or 8000
         server.listen(port)
         console.log("Soma listening on port #{port}...")
 
