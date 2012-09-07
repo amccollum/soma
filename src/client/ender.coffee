@@ -188,69 +188,69 @@ class soma.BrowserContext extends soma.Context
         el.attr(attributes)
         return el
 
-        loadElement: (tag, attributes, text, callback) ->
-            urlAttr = (if tag in ['img', 'script'] then 'src' else 'href')
-            url = attributes[urlAttr]
+    loadElement: (tag, attributes, text, callback) ->
+        urlAttr = (if tag in ['img', 'script'] then 'src' else 'href')
+        url = attributes[urlAttr]
 
-            # Check if the element is already loaded (or has been pre-fetched)
-            el = $("head [#{urlAttr}=\"#{url}\"], head [data-#{urlAttr}=\"#{url}\"]") if url
+        # Check if the element is already loaded (or has been pre-fetched)
+        el = $("head [#{urlAttr}=\"#{url}\"], head [data-#{urlAttr}=\"#{url}\"]") if url
 
-            if el and el.length
-                # See whether the element was lazy-loaded
-                if 'type' of attributes and attributes.type != el.attr('type')
-                    el.detach().attr('type', attributes.type).appendTo($('head'))
+        if el and el.length
+            # See whether the element was lazy-loaded
+            if 'type' of attributes and attributes.type != el.attr('type')
+                el.detach().attr('type', attributes.type).appendTo($('head'))
 
-            else
-                # Element hasn't been created yet
-                el = $(document.createElement(tag))
+        else
+            # Element hasn't been created yet
+            el = $(document.createElement(tag))
 
-                if 'type' of attributes
-                    if not url
-                        # The element content is inline
-                        el.text(text)
+            if 'type' of attributes
+                if not url
+                    # The element content is inline
+                    el.text(text)
 
-                    else if attributes.type == 'text/javascript'
-                        el.attr('defer', 'defer')
+                else if attributes.type == 'text/javascript'
+                    el.attr('defer', 'defer')
 
-                    else
-                        # Load manually using AJAX
-                        el.attr("data-#{urlAttr}", url)
-                        delete attributes[urlAttr]
+                else
+                    # Load manually using AJAX
+                    el.attr("data-#{urlAttr}", url)
+                    delete attributes[urlAttr]
 
-                        $.ajax
-                            method: 'GET'
-                            url: "#{url}"
-                            type: 'html'
+                    $.ajax
+                        method: 'GET'
+                        url: "#{url}"
+                        type: 'html'
 
-                            success: (text) =>
-                                el.text(text)
-                                el.trigger('load')
+                        success: (text) =>
+                            el.text(text)
+                            el.trigger('load')
 
-                            error: (xhr) =>
-                                el.trigger('error')
+                        error: (xhr) =>
+                            el.trigger('error')
 
-                    $('head').append(el)
+                $('head').append(el)
 
-                # We don't need to load dataURLs
-                if url and url.substr(0, 5) != 'data:'
-                    el.attr('data-loading', 'loading')
-                    el.bind 'load error', => el.removeAttr('data-loading')
+            # We don't need to load dataURLs
+            if url and url.substr(0, 5) != 'data:'
+                el.attr('data-loading', 'loading')
+                el.bind 'load error', => el.removeAttr('data-loading')
 
-                el.attr(attributes)
+            el.attr(attributes)
 
-            if el.attr('data-loading')
-                done = @wait(callback)
-                el.bind 'load', =>
-                    done(el)
+        if el.attr('data-loading')
+            done = @wait(callback)
+            el.bind 'load', =>
+                done(el)
 
-                el.bind 'error', () =>
-                    @emit('error', 'loadElement', tag, attributes, text)
-                    done(el)
+            el.bind 'error', () =>
+                @emit('error', 'loadElement', tag, attributes, text)
+                done(el)
 
-            else if callback
-                callback(el)
+        else if callback
+            callback(el)
 
-            return el
+        return el
 
     loadScript: (attributes, callback) ->
         if typeof attributes is 'string'
