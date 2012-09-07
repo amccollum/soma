@@ -286,7 +286,7 @@ class soma.BrowserContext extends soma.Context
         
         done = =>
             @chunk.emit('render')
-            $('body').html(@chunk.html)
+            $('body').unbind().html(@chunk.html)
             $.enhance(@)
             
         if @chunk.status is 'complete' then done() else @chunk.on 'complete', done
