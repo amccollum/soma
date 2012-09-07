@@ -30,19 +30,6 @@ collect = (cls, fn, ob) ->
 soma.chunks = (ob) -> collect(soma.Chunk, soma.chunks, ob)
 soma.views = (ob) -> collect(soma.View, soma.views, ob)
 
-soma.lookup = (scope, name) ->
-    scope = scope.split('/').slice(1)
-    
-    checkScope = (tree, scope) ->
-        if scope.length
-            cur = scope.shift()
-            result = checkScope(tree[cur], scope)
-            return result if result
-            
-        return tree[name]
-    
-    return checkScope(soma.tree, scope)
-
 
 extend = (ob1, ob2) ->
     for key, value of ob2
@@ -77,7 +64,28 @@ class soma.Widget extends soma.EventMonitor
 
 # Placeholder class to inherit from
 class soma.Context
-    
+    constructor: ->
+        @scope = ''
+        
+    setScope: (scope)->
+        if scope[0] == '/'
+            @scope = scope.substr(1)
+        else
+            @scope += '/' + scope
+
+    lookup: (name) ->
+        scope = @scope.split('/').slice(1)
+
+        checkScope = (tree, scope) ->
+            if scope.length
+                cur = scope.shift()
+                result = checkScope(tree[cur], scope)
+                return result if result
+
+            return tree[name]
+
+        return checkScope(soma.tree, scope)
+
 
 # View is only used client-side
 class soma.View extends soma.Widget
@@ -153,19 +161,6 @@ class soma.Chunk extends soma.Widget
             fn.apply(this, arguments) if fn
             if not --@waiting and @status != 'abort'
                 @emit('ready')
-
-    loadChunk: (chunk, options) ->
-        if typeof chunk is 'function'
-            chunk = new chunk(options)
-    
-        else if typeof chunk is 'string'
-            chunk = new soma.chunks[chunk](options)
-    
-        if not chunk.html
-            chunk.on 'complete', @wait()
-            chunk.load(@context)
-            
-        return chunk
 
 
 # Load node-specific code on the server

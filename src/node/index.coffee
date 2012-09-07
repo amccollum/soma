@@ -56,7 +56,9 @@ class Element
                 
             when 'style' then "style-#{@attributes['data-href']}"
     
-    toString: ->
+    html: -> @text
+    
+    outerHTML: ->
         html = "<#{@tag}"
         for name, value of @attributes
             html += " #{name}=\"#{escapeXML(value)}\""
@@ -64,130 +66,12 @@ class Element
         html += if not @text and @isVoid() then ' />' else ">#{@text}</#{@tag}>"
         return html
 
+    toString: @::outerHTML
 
 class soma.Chunk extends soma.Chunk
     load: ->
         super
         @loadScript(@_src) if @_src
-            
-    loadElement: (tag, attributes, text, callback) ->
-        el = new Element(tag, attributes, text)
-        @context.addHeadElement(el)
-
-        callback(el) if callback
-        return el
-    
-    setTitle: (title) ->
-        return @loadElement 'title', {}, title
-    
-    setIcon: (attributes) ->
-        if typeof attributes is 'string'
-            attributes = { href: attributes }
-
-        attributes.rel or= 'icon'
-        attributes.type or= 'image/png'
-        return @loadElement 'link', attributes
-
-    setMetaHeader: (attributes, content) ->
-        if typeof attributes is 'string'
-            attributes = { 'http-equiv': attributes, content: content }
-
-        return @loadElement 'meta', attributes
-        
-    setMeta: (attributes, content) ->
-        if typeof attributes is 'string'
-            attributes = { name: attributes, content: content }
-
-        return @loadElement 'meta', attributes
-        
-    setManifest: (src) ->
-        @context.addManifest(src)
-        
-    loadScript: (attributes, callback) ->
-        if typeof attributes is 'string'
-            attributes = { src: attributes }
-
-        attributes.type = 'text/javascript'
-        attributes.charset = 'utf8'
-
-        if @context.inlineScripts
-            text = soma.files[attributes.src]
-            attributes['data-src'] = attributes.src
-            delete attributes.src
-            
-        else
-            # attributes['defer'] = 'defer'
-            attributes['data-loading'] = 'loading'
-            attributes['onload'] = "this.removeAttribute('data-loading');"
-                        
-        return @loadElement 'script', attributes, text, callback
-        
-    loadStylesheet: (attributes) ->
-        if typeof attributes is 'string'
-            attributes = { href: attributes }
-
-        if @context.inlineStylesheets
-            tag = 'style'
-            text = soma.files[attributes.href]
-            attributes['data-href'] = attributes.href
-            delete attributes.href
-        else
-            attributes.rel = 'stylesheet'
-
-        attributes.type = 'text/css'
-        attributes.charset = 'utf8'
-
-        return @loadElement 'link', attributes, text
-
-    loadTemplate: (attributes) ->
-        if typeof attributes is 'string'
-            attributes = { src: attributes }
-
-        # Templates must be inlined, otherwise they won't load
-        text = soma.files[attributes.src]
-        attributes['data-src'] = attributes.src
-        delete attributes.src
-            
-        attributes.type = 'text/plain'
-        attributes.charset = 'utf8'
-
-        @loadElement 'script', attributes, text
-        return text
-
-    loadImage: (attributes) ->
-        if typeof attributes is 'string'
-            attributes = { src: attributes }
-            
-        attributes['data-loading'] = 'loading'
-        attributes['onload'] = "this.removeAttribute('data-loading');"
-
-        return @loadElement 'img', attributes
-
-    loadData: (options) ->
-        result = {}
-        _success = options.success
-        _error = options.error
-    
-        done = @wait()
-        options.success = (data) =>
-            for key in data
-                result[key] = data[key]
-
-            _success(data) if _success
-            done()
-        
-        options.error = (status, response) =>
-            if _error
-                _error(status, response, options)
-            else
-                @emit('error', 'loadData', status, response, options)
-
-            done()
-    
-        context = new soma.InternalContext(@context, options)
-        context.begin()
-
-        return result
     
 
 class soma.ClientContext extends soma.Context
@@ -390,29 +274,140 @@ class soma.ClientContext extends soma.Context
         formData.begin()
         return
 
+    setTitle: (title) ->
+        return @loadElement 'title', {}, title
 
-class soma.InternalContext extends soma.Context
-    constructor: (@parent, @options) ->
-        @cookies = @parent.cookies
-    
-    begin: -> soma.router.run(@options.url, @)
+    setIcon: (attributes) ->
+        if typeof attributes is 'string'
+            attributes = { href: attributes }
 
-    send: (statusCode, body) ->
-        if typeof statusCode isnt 'number'
-            body = statusCode
-            statusCode = 200
-    
-        if statusCode != 200
-            return @options.error(statusCode, body)
-    
-        if typeof body isnt 'object'
-            throw new Error('Internal contexts can only send JSON.')
-    
-        @options.success(body)
+        attributes.rel or= 'icon'
+        attributes.type or= 'image/png'
+        return @loadElement 'link', attributes
 
-    sendError: (err, body) ->
-        console.log(err.stack) if err
-        @send(500, body)
+    setMetaHeader: (attributes, content) ->
+        if typeof attributes is 'string'
+            attributes = { 'http-equiv': attributes, content: content }
 
-    go: (path) -> @parent.go(path)    
+        return @loadElement 'meta', attributes
+
+    setMeta: (attributes, content) ->
+        if typeof attributes is 'string'
+            attributes = { name: attributes, content: content }
+
+        return @loadElement 'meta', attributes
+
+    setManifest: (src) ->
+        @addManifest(src)
+
+    loadElement: (tag, attributes, text, callback) ->
+        el = new Element(tag, attributes, text)
+        @addHeadElement(el)
+
+        callback(null, el) if callback
+        return el
+
+    loadScript: (attributes, callback) ->
+        if typeof attributes is 'string'
+            attributes = { src: attributes }
+
+        attributes.type = 'text/javascript'
+        attributes.charset = 'utf8'
+
+        if @inlineScripts
+            text = soma.files[attributes.src]
+            attributes['data-src'] = attributes.src
+            delete attributes.src
+
+        else
+            # attributes['defer'] = 'defer'
+            attributes['data-loading'] = 'loading'
+            attributes['onload'] = "this.removeAttribute('data-loading');"
+
+        @loadElement 'script', attributes, text, callback
+        return
+
+    loadStylesheet: (attributes, callback) ->
+        if typeof attributes is 'string'
+            attributes = { href: attributes }
+
+        if @inlineStylesheets
+            tag = 'style'
+            text = soma.files[attributes.href]
+            attributes['data-href'] = attributes.href
+            delete attributes.href
+        else
+            attributes.rel = 'stylesheet'
+
+        attributes.type = 'text/css'
+        attributes.charset = 'utf8'
+
+        @loadElement 'link', attributes, text, callback
+        return
+
+    loadTemplate: (name) ->
+        url = @lookup(name)
+        attributes = 
+            'data-src': url
+            type: 'text/plain'
+
+        @loadElement 'script', attributes, soma.files[url], (err, el) ->
+        return
+
+    loadImage: (attributes, callback) ->
+        if typeof attributes is 'string'
+            attributes = { src: attributes }
+
+        attributes['data-loading'] = 'loading'
+        attributes['onload'] = "this.removeAttribute('data-loading');"
+
+        @loadElement 'img', attributes, null, callback
+        return
+
+    loadData: (options, callback) ->
+        context = new class
+            begin: -> soma.router.run(options.url, @)
+
+            send: (statusCode, body) ->
+                if typeof statusCode isnt 'number'
+                    body = statusCode
+                    statusCode = 200
+
+                if statusCode != 200
+                    return @error(statusCode, body)
+
+                if typeof body isnt 'object'
+                    throw new Error('Internal contexts can only send JSON.')
+
+                @success(body)
+
+            sendError: (err, body) ->
+                console.log(err.stack) if err
+                @send(500, body)
+
+            success: (data) =>
+                options.success(data) if options.success
+                callback(null, data)
+
+            error: (status, response) =>
+                options.error(status, response, options) if options.error
+                callback(status, response, options)
+
+            @:: = context
+            @::constructor = @
+
+        context.begin()
+        return
+
+    loadChunk: (name, data, callback) ->
+        chunk = new Chunk
+        
+        url = @lookup(name + '.js')
+        fn = new Function('context', 'soma', 'data', soma.files[url])
+        fn.apply(chunk, @, soma, data)
+        
+        chunk.on 'complete', ->
+            callback(null, chunk)
+            
+        return
 
