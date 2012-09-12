@@ -84,14 +84,9 @@ soma.load = (path, lazy) ->
     return context
     
 
-class soma.Chunk extends soma.Chunk
-    complete: ->
-        @el or= $(@html)
-        @el.data('view', @)                    
-
-
 class soma.BrowserContext extends soma.Context
     constructor: (@path, @lazy) ->
+        super
         @cookies = $.jar
 
     begin: ->
@@ -252,37 +247,54 @@ class soma.BrowserContext extends soma.Context
 
         return el
 
+    loadFile: (url, callback) ->
+        url = @resolve(url)
+        
+        if url of soma.bundled
+            sha = soma.bundled[url]
+            attributes =
+                src: "/bundles/#{sha}.js"
+                type: 'text/javascript'
+        
+            @loadElement 'script', attributes, null, (err) ->
+                return callback.apply(this, arguments) if err
+                callback(null, soma.bundles[sha][url])
+        
+        else
+            attributes =
+                src: url
+                type: 'text/plain'
+        
+            @loadElement 'script', attributes, null, (err, el) ->
+                return callback.apply(this, arguments) if err
+                callback(null, el.text())
+        
+        return
+
     loadScript: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
+        attributes.src = @resolve(attributes.src)
         attributes.type = 'text/javascript'
         @loadElement 'script', attributes, null, callback
         return
 
-    loadStylesheet: (attributes) ->
+    loadStylesheet: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { href: attributes }
 
+        attributes.href = @resolve(attributes.href)
         attributes.type = 'text/css'
         attributes.rel = 'stylesheet'
         @loadElement 'link', attributes, null, callback
-        return
-
-    loadTemplate: (name) ->
-        attributes =
-            src: @lookup(name)
-            type: 'text/html'
-
-        el = @loadElement 'script', attributes, null, callback
-        el.toString = -> el.html()
-
         return
 
     loadImage: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
+        attributes.src = @resolve(attributes.src)
         @loadElement 'img', attributes, null, callback
         el.toString = -> el.outerHTML()
             
@@ -294,6 +306,7 @@ class soma.BrowserContext extends soma.Context
 
         options.headers or= {}
         options.headers['X-CSRF-Token'] = @cookies.get('_csrf', {raw: true})
+        options.url = @resolve(options.url)
 
         options.success = (data) =>
             _success(data) if _success
@@ -305,31 +318,3 @@ class soma.BrowserContext extends soma.Context
 
         $.ajaj(options)
         return
-
-    loadChunk: (name, data, callback) ->
-        chunk = new Chunk
-        
-        url = @lookup(name + '.js')
-        
-        $.ajax
-            method: 'GET'
-            url: "#{url}"
-            type: 'html'
-
-            success: (text) =>
-                fn = new Function('context', 'soma', 'data', text)
-                fn.apply(chunk, @, soma, data)
-
-                chunk.on 'complete', ->
-                    callback(null, chunk)
-
-                return
-
-            error: (xhr) =>
-                callback(xhr.status, xhr.response, data, xhr)
-                return
-                
-        return
-
-
-

@@ -68,17 +68,14 @@ class Element
 
     toString: @::outerHTML
 
-class soma.Chunk extends soma.Chunk
-    load: ->
-        super
-        @loadScript(@_src) if @_src
-    
 
 class soma.ClientContext extends soma.Context
     inlineScripts: false
     inlineStylesheets: false
     
     constructor: (@request, @response, scripts) ->
+        super
+
         urlParsed = url.parse(@request.url, true)
         for key of urlParsed
             @[key] = urlParsed[key]
@@ -137,6 +134,22 @@ class soma.ClientContext extends soma.Context
                     @send(result)
         
         return
+
+    build: (content) ->
+        @loadChunk '/chunks/base.js', { content: content }, (err, html) ->
+            return @sendError(err, html) if err
+            @send(html)
+            
+        if body instanceof soma.Chunk
+            @chunks[0].on 'complete', =>
+                @chunks[0].emit('render')
+                
+                @send """
+                """
+            
+            @chunks[0].load(this)
+            return
+
         
     send: (statusCode, body, contentType) ->
         if typeof statusCode isnt 'number'
@@ -146,37 +159,6 @@ class soma.ClientContext extends soma.Context
         
         body or= ''
         
-        if body instanceof soma.Chunk
-            if @chunks
-                throw new Error('Cannot send multiple chunks')
-
-            @chunks = [body]
-
-            while @chunks[0].meta
-                @chunks.unshift(@chunks[0].meta())
-            
-            @chunks[0].on 'complete', =>
-                @chunks[0].emit('render')
-                
-                @send """
-                    <!doctype html>
-                    <html #{@manifest or ''}>
-                    <head>
-                        #{(value for key, value of @head).join('\n    ')}
-
-                        <script type='text/javascript'>
-                            soma.tree = #{JSON.stringify(soma.tree)};
-                        </script>
-                    </head>
-                    <body>
-                        #{@chunks[0].html}
-                    </body>
-                    </html>
-                """
-            
-            @chunks[0].load(this)
-            return
-
         if body instanceof Buffer
             contentType or= 'application/octet-stream'
             contentLength = body.length
@@ -306,11 +288,20 @@ class soma.ClientContext extends soma.Context
 
         callback(null, el) if callback
         return el
+        
+    loadFile: (url, callback) ->
+        if url of soma.files
+            callback(null, soma.files[url])
+        else
+            callback(new Error("File '#{name}'could not be found"))
+            
+        return
 
     loadScript: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
+        attributes.src = @resolve(attributes.src)
         attributes.type = 'text/javascript'
         attributes.charset = 'utf8'
 
@@ -331,6 +322,8 @@ class soma.ClientContext extends soma.Context
         if typeof attributes is 'string'
             attributes = { href: attributes }
 
+        attributes.href = @resolve(attributes.href)
+
         if @inlineStylesheets
             tag = 'style'
             text = soma.files[attributes.href]
@@ -345,19 +338,11 @@ class soma.ClientContext extends soma.Context
         @loadElement 'link', attributes, text, callback
         return
 
-    loadTemplate: (name) ->
-        url = @lookup(name)
-        attributes = 
-            'data-src': url
-            type: 'text/plain'
-
-        @loadElement 'script', attributes, soma.files[url], (err, el) ->
-        return
-
     loadImage: (attributes, callback) ->
         if typeof attributes is 'string'
             attributes = { src: attributes }
 
+        attributes.src = @resolve(attributes.src)
         attributes['data-loading'] = 'loading'
         attributes['onload'] = "this.removeAttribute('data-loading');"
 
@@ -365,7 +350,9 @@ class soma.ClientContext extends soma.Context
         return
 
     loadData: (options, callback) ->
-        context = new class
+        options.url = @resolve(options.url)
+        
+        subcontext = @createSubcontext
             begin: -> soma.router.run(options.url, @)
 
             send: (statusCode, body) ->
@@ -374,40 +361,18 @@ class soma.ClientContext extends soma.Context
                     statusCode = 200
 
                 if statusCode != 200
-                    return @error(statusCode, body)
+                    options.error(statusCode, body, options) if options.error
+                    return callback(statusCode, body)
 
                 if typeof body isnt 'object'
-                    throw new Error('Internal contexts can only send JSON.')
+                    throw new Error('API contexts can only send JSON.')
 
-                @success(body)
+                options.success(body) if options.success
+                callback(null, body)
 
             sendError: (err, body) ->
                 console.log(err.stack) if err
                 @send(500, body)
 
-            success: (data) =>
-                options.success(data) if options.success
-                callback(null, data)
-
-            error: (status, response) =>
-                options.error(status, response, options) if options.error
-                callback(status, response, options)
-
-            @:: = context
-            @::constructor = @
-
-        context.begin()
+        subcontext.begin()
         return
-
-    loadChunk: (name, data, callback) ->
-        chunk = new Chunk
-        
-        url = @lookup(name + '.js')
-        fn = new Function('context', 'soma', 'data', soma.files[url])
-        fn.apply(chunk, @, soma, data)
-        
-        chunk.on 'complete', ->
-            callback(null, chunk)
-            
-        return
-
