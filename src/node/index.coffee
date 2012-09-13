@@ -403,7 +403,7 @@ class soma.InternalContext extends soma.Context
         if statusCode != 200
             return @options.error(statusCode, body)
     
-        if typeof body isnt 'object'
+        if body and typeof body isnt 'object'
             throw new Error('Internal contexts can only send JSON.')
     
         @options.success(body)
