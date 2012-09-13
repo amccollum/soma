@@ -391,7 +391,9 @@ class soma.InternalContext extends soma.Context
     constructor: (@parent, @options) ->
         @cookies = @parent.cookies
     
-    begin: -> soma.router.run(@options.url, @)
+    begin: ->
+        @data = @options.data
+        soma.router.run(@options.url, @)
 
     send: (statusCode, body) ->
         if typeof statusCode isnt 'number'
