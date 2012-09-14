@@ -4,7 +4,29 @@ events = require('events')
 soma.Router = require('route').Router
 
 soma.router = new soma.Router
-soma.routes = (ob) -> soma.router.add(ob)
+soma.routes = (layout, routes) ->
+    if typeof layout isnt 'string'
+        routes = layout
+        layout = null
+        
+    for expr, fn of routes
+        soma.router.add expr, (@params) ->
+            if @params
+                for key, value of @params
+                    @data[key] = value
+                    
+            if typeof fn is 'function'
+                fn.call(@, @params)
+                
+            else
+                chunk = fn
+                if layout
+                    @loadChunk layout, {chunk: chunk}, (html) ->
+                        @build(html)
+
+                else
+                    @loadChunk chunk, (html) ->
+                        @build(html)
 
 collect = (cls, fn, ob) ->
     if Array.isArray(ob)
@@ -102,9 +124,9 @@ class soma.Context
             build: (html) -> callback(null, html)
             url: url
     
-        @loadCode url, ['soma'], (err, fn) ->
+        @loadCode url, ['soma', 'data'], (err, fn) ->
             callback.apply(this, arguments) if err            
-            fn.apply(subcontext, soma)
+            fn.apply(subcontext, soma, data)
             return
         
         return

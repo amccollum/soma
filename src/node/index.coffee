@@ -69,7 +69,7 @@ class Element
     toString: @::outerHTML
 
 
-class soma.ClientContext extends soma.Context
+class soma.Context extends soma.Context
     inlineScripts: false
     inlineStylesheets: false
     
@@ -82,20 +82,14 @@ class soma.ClientContext extends soma.Context
 
         @cookies = new jar.Jar(@request, @response, ['$ecret']) # FIX THIS!
         @head = {}
+        @data = @query
         
         @addHeadElement(new Element('title'))
         @addHeadElement(new Element('meta', { charset: 'utf-8' }))
         
         for script in scripts
-            attributes =
-                src: script
-                type: 'text/javascript'
-                charset: 'utf8'
-                # defer: 'defer'
-                onload: "this.removeAttribute('data-loading');"
-                'data-loading': 'loading'
-                
-            @addHeadElement(new Element('script', attributes))
+            # This is techincally async, but isn't on the server
+            @loadScript(script)
         
     addHeadElement: (el) ->
         if el.headerKey()
@@ -118,7 +112,11 @@ class soma.ClientContext extends soma.Context
         
         return
         
-    route: (@data) ->
+    route: () ->
+        if @body
+            for key, value of @body
+                @data[key] = value
+                
         results = soma.router.run(@path, @)
 
         # Allow for a default route
@@ -128,29 +126,23 @@ class soma.ClientContext extends soma.Context
         if not results.length
             @send(404)
 
-        else
-            for result in results
-                if result instanceof soma.Chunk
-                    @send(result)
-        
         return
 
-    build: (content) ->
-        @loadChunk '/chunks/base.js', { content: content }, (err, html) ->
-            return @sendError(err, html) if err
-            @send(html)
-            
-        if body instanceof soma.Chunk
-            @chunks[0].on 'complete', =>
-                @chunks[0].emit('render')
-                
-                @send """
-                """
-            
-            @chunks[0].load(this)
-            return
+    build: (body) ->
+        @emit 'build', body
+        @send """
+            <!doctype html>
+            <html #{@manifest or ''}>
+            <head>
+                #{(value for key, value of @head).join('\n    ')}
+            </head>
+            <body>
+                #{body}
+            </body>
+            </html>
+        """
+        return
 
-        
     send: (statusCode, body, contentType) ->
         if typeof statusCode isnt 'number'
             contentType = body
@@ -204,7 +196,8 @@ class soma.ClientContext extends soma.Context
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
             if @request.method == 'GET' or @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
-                @route(JSON.parse(chunks.join('') or 'null'))
+                @body = JSON.parse(chunks.join('') or 'null')
+                @route()
             else
                 @sendError(null, 'Bad/missing _csrf token.')
 
@@ -212,12 +205,12 @@ class soma.ClientContext extends soma.Context
     
     _readBinary: ->
         chunks = []
-        data = {}
+        @body = {}
 
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', =>
             if @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
-                data[@request.headers['x-file-name']] = combineChunks(chunks)
+                @body[@request.headers['x-file-name']] = combineChunks(chunks)
                 @route(data)
             else
                 @sendError(null, 'Bad/missing _csrf token.')
@@ -226,10 +219,10 @@ class soma.ClientContext extends soma.Context
         chunks = []
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
-            data = querystring.parse(chunks.join(''))
-            if @request.method == 'GET' or data._csrf == @cookies.get('_csrf', {raw: true})
-                delete data._csrf
-                @route(data)
+            @body = querystring.parse(chunks.join(''))
+            if @request.method == 'GET' or @body._csrf == @cookies.get('_csrf', {raw: true})
+                delete @body._csrf
+                @route()
             else
                 @sendError(null, 'Bad/missing _csrf token.')
 
@@ -237,18 +230,18 @@ class soma.ClientContext extends soma.Context
         
     _readFormData: ->
         chunks = []
-        data = {}
+        @body = {}
 
         formData = new multipart.formData(@request)
         
         formData.on 'stream', (stream) =>
             chunks = []
             stream.on 'data', (chunk) => chunks.push(chunk)
-            stream.on 'end', () => data[stream.name] = combineChunks(chunks)
+            stream.on 'end', () => @body[stream.name] = combineChunks(chunks)
         
         formData.on 'end', () =>
-            if data._csrf == @cookies.get('_csrf', {raw: true})
-                delete data._csrf
+            if @body._csrf == @cookies.get('_csrf', {raw: true})
+                delete @body._csrf
                 @route(data)
             else
                 @sendError(null, 'Bad/missing _csrf token.')

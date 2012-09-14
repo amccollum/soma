@@ -9,7 +9,7 @@ soma = require('soma')
 
 Line = require('line').Line
 
-loadFiles = (source, tree={}, files={}, callback) ->
+loadFiles = (source, api, tree={}, files={}, callback) ->
     basename = path.basename(source)
     
     if fs.statSync(source).isDirectory()
@@ -31,8 +31,8 @@ loadFiles = (source, tree={}, files={}, callback) ->
                     for name in names
                         if name[0] == '.'
                             continue
-
-                        loadFiles("#{source}/#{name}", tree[basename], files={}, line.wait())
+                            
+                        loadFiles("#{source}/#{name}", api, tree[basename], files={}, line.wait())
                         
                 -> callback(tree)
 
@@ -44,69 +44,28 @@ loadFiles = (source, tree={}, files={}, callback) ->
         
         if mime.lookup(source).slice(0, 4) in ['text']
             encoding = 'utf8'
+
+        if name.slice(-3) == '.js'
+            if api or name == '_init.js'
+                soma._src = url
+                require(abs)
+                soma._src = null
+                
+            if not api and name == '_init.js'
+                soma.scripts.push(url)
         
-        fs.readFile source, encoding, (err, data) ->
-            return callback.apply(@, arguments) if err
+        if not api
+            fs.readFile source, encoding, (err, data) ->
+                return callback.apply(@, arguments) if err
             
-            tree[basename] = url
-            files[url] = data
+                tree[basename] = url
+                files[url] = data
             
-            callback(null, tree)
-            return
+                callback(null, tree)
+                return
         
     return
-
-load = (source, exec, serve) ->
-    stats = fs.statSync(source)
     
-    if stats.isDirectory()
-
-        urls = []
-        names = fs.readdirSync(source)
-
-        for name in names
-            if name[0] == '.'
-                continue
-                
-            urls = urls.concat(load("#{source}/#{name}", exec, serve))
-        
-        return urls
-        
-    else
-        abs = "#{process.cwd()}/#{source}"
-        url = "/#{source}"
-        
-        if url in soma.files
-            return
-            
-        watcher = fs.watch source, ->
-            if not path.existsSync source
-                console.log('Module went missing: ', source)
-                watcher.close()
-                return
-                
-            try
-                if serve
-                    if mime.lookup(source).slice(0, 4) in ['text']
-                        encoding = 'utf8'
-
-                    soma.files[url] = fs.readFileSync(source, encoding)
-
-            catch e
-                console.log('Failed to reload module: ', source)
-                console.log(e.stack)
-    
-
-        watcher.emit('change')
-
-        if exec and source.slice(-3) == '.js'
-            # This so we can store the source file of chunk and view subclasses defined in the module
-            soma._src = url
-            m = require(abs)
-            soma._src = null
-            
-        return [url]
-
 
 class Bundle
     constructor: (sources) ->
@@ -155,35 +114,23 @@ class Bundle
         
 
 soma.load = ->
-    soma.config = require('./package.json')
-    soma.config.chunks or= 'chunks'
-    soma.config.templates or= 'templates'
-
     soma.files = {}
     soma.tree = {}
     soma.bundles = {}
+    soma.scripts = ['ender.js']
     
-    loadFiles(soma.config.chunks, soma.tree, soma.files)
-    loadFiles(soma.config.templates, soma.tree, soma.files)
+    soma.config = require('./package.json')
+    soma.config.api or= 'api'
+    soma.config.app or= 'app'
+
+    loadFiles(soma.config.api, true, soma.tree, soma.files)
+    loadFiles(soma.config.app, false, soma.tree, soma.files)
     loadFiles('bundles', soma.tree, soma.files)
     
     soma.bundled = require('./bundles')
     
     
 soma.init = ->
-    for source in soma.config.shared
-        load(path.normalize(source), true, true)
-
-    for source in soma.config.server
-        load(path.normalize(source), true, false)
-
-    for source in soma.config.client
-        load(path.normalize(source), false, true)
-
-    scripts = []
-    for source in soma.config.init
-        scripts = scripts.concat(load(path.normalize(source), false, true))
-
     serverDomain = domain.create()
     serverDomain.run ->
         server = http.createServer (request, response) ->
@@ -217,7 +164,7 @@ soma.init = ->
                     response.end(content)
             
                 else
-                    context = new soma.ClientContext(request, response, scripts)
+                    context = new soma.Context(request, response, soma.scripts)
                     context.begin()
 
         port = process.env.PORT or soma.config.port or 8000

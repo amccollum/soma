@@ -4,25 +4,6 @@ $ = ender
 
 # Ender additions
 $.ender({
-    enhance: (context) -> $(document).enhance(context)
-})
-
-$.ender({
-    enhance: (context) ->
-        views = []
-        for own name, value of soma.views
-            $(value::selector, @).each ->
-                views.push(new soma.views[name]({el: @, context: context}))
-        
-        for view in views
-            view.emit('complete')
-
-        for form in $('form')
-            $(form).append("<input type=\"hidden\" name=\"_csrf\" value=\"#{$.jar.get('_csrf', {raw:true})}\" />")
-
-        return
-
-    # just for fun?
     outerHTML: (html) ->
         if html then @each -> $(@).replaceWith(html)
         else @[0].outerHTML or new XMLSerializer().serializeToString(@[0])
@@ -31,8 +12,8 @@ $.ender({
 
 $('document').ready ->
     # We already have the HTML, but we need a context to create the views
-    context = new soma.BrowserContext(document.location.pathname)
-    $.enhance(context)
+    context = new soma.Context(document.location.pathname)
+    context.enhance()
     
     # Implement client-side loading and precaching, when possible
     if history.pushState
@@ -79,26 +60,27 @@ soma.precache = (path) ->
 
 
 soma.load = (path, lazy) ->
-    context = new soma.BrowserContext(path, lazy)
+    context = new soma.Context(path, lazy)
     context.begin()
     return context
     
 
-class soma.BrowserContext extends soma.Context
+class soma.Context extends soma.Context
     constructor: (@path, @lazy) ->
         super
         @cookies = $.jar
+        @child = null
+        @built = false
+        @rendered = false
+        @stopped = false
+
+        @on 'render', ->
+            for form in $('form')
+                $(form).append("<input type=\"hidden\" name=\"_csrf\" value=\"#{$.jar.get('_csrf', {raw:true})}\" />")
 
     begin: ->
         @results = soma.router.run(@path, @)
-
-        if @results and @results.length
-            for result in @results
-                if result instanceof soma.Chunk
-                    @send(result)
-                    
-        else
-            @render() if not @lazy
+        @render() if not @lazy
         
         return
 
@@ -115,22 +97,31 @@ class soma.BrowserContext extends soma.Context
         @chunk.load(this)
         @render() if not @lazy
         return
+    
+    build: (@html) ->
+        @built = true
+        @emit 'build', @html
+        return
         
     render: ->
+        return @child.render() if @child
+            
         @lazy = false
         
-        if not @chunk
+        # If we didn't execute any routes, go to the server
+        if not @results.length
             document.location = @path
-            return
+            return 
         
         done = =>
-            @chunk.emit('render')
-            $('body').unbind().html(@chunk.html)
-            $.enhance(@)
+            if not @stopped
+                $('body').unbind().html(@html)
+                @rendered = true
+                @emit('render')
             
-        if @chunk.status is 'complete' then done() else @chunk.on 'complete', done
+        if @html then done() else @on 'build', done
         return
-
+        
     go: (path, replace) ->
         if history.pushState
             if not @lazy
@@ -139,12 +130,9 @@ class soma.BrowserContext extends soma.Context
                 else
                     history.pushState(true, '', path)
 
-            if @chunk
-                @chunk.emit('halt')
-                @chunk = null
-                
-            @path = path
-            @begin()
+            @stopped = true
+            @child = new soma.Context(path, @lazy)
+            @child.begin()
 
         else
             # if we don't have pushState, we need to load a new Chunk
@@ -153,35 +141,49 @@ class soma.BrowserContext extends soma.Context
         return
         
     setTitle: (title) ->
-        $('title').text(title)
+        if not @rendered
+            @on 'render', => @setTitle(title)
+        else
+            $('title').text(title)
+            
+        return
 
     setIcon: (attributes) ->
-        if typeof attributes is 'string'
-            attributes = { href: attributes }
+        if not @rendered
+            @on 'render', => @setIcon(attributes)
+        else
+            if typeof attributes is 'string'
+                attributes = { href: attributes }
 
-        attributes.rel or= 'icon'
-        attributes.type or= 'image/png'
+            attributes.rel or= 'icon'
+            attributes.type or= 'image/png'
 
-        el = $("link[rel=\"#{attributes.rel}\"][href=\"#{attributes.href}\"]")
-        if not el.length
-            el = $(document.createElement('link'))
-            $('head').append(el)
+            el = $("link[rel=\"#{attributes.rel}\"][href=\"#{attributes.href}\"]")
+            if not el.length
+                el = $(document.createElement('link'))
+                $('head').append(el)
 
-        el.attr(attributes)
-        return el
+            el.attr(attributes)
+            
+        return
 
-    setMeta: (attributes, value) ->
-        if typeof attributes is 'string'
-            name = attributes
-            attributes = { name: name, value: value }
+    setMeta: (nameOrAttributes, value) ->
+        if not @rendered
+            @on 'render', => @setMeta(attributes, value)
+        else
+            if value
+                attributes = { name: nameOrAttributes, value: value }
+            else
+                attributes = nameOrAttributes
+                
+            el = $("meta[name=\"#{attributes.name}\"]")
+            if not el.length
+                el = $(document.createElement('meta'))
+                $('head').append(el)
 
-        el = $("meta[name=\"#{attributes.name}\"]")
-        if not el.length
-            el = $(document.createElement('meta'))
-            $('head').append(el)
+            el.attr(attributes)
 
-        el.attr(attributes)
-        return el
+        return
 
     loadElement: (tag, attributes, text, callback) ->
         urlAttr = (if tag in ['img', 'script'] then 'src' else 'href')
