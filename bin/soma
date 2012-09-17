@@ -65,26 +65,26 @@ load = function(source, exec, serve) {
 };
 
 soma.init = function() {
-  var packageJSON, scripts, serverDomain, source, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
+  var scripts, serverDomain, source, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3;
   soma.files = {};
-  packageJSON = JSON.parse(fs.readFileSync('package.json'));
-  _ref = packageJSON.soma.shared;
+  soma.config = JSON.parse(fs.readFileSync('package.json')).soma;
+  _ref = soma.config.shared;
   for (_i = 0, _len = _ref.length; _i < _len; _i++) {
     source = _ref[_i];
     load(path.normalize(source), true, true);
   }
-  _ref1 = packageJSON.soma.server;
+  _ref1 = soma.config.server;
   for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
     source = _ref1[_j];
     load(path.normalize(source), true, false);
   }
-  _ref2 = packageJSON.soma.client;
+  _ref2 = soma.config.client;
   for (_k = 0, _len2 = _ref2.length; _k < _len2; _k++) {
     source = _ref2[_k];
     load(path.normalize(source), false, true);
   }
   scripts = [];
-  _ref3 = packageJSON.soma.init;
+  _ref3 = soma.config.init;
   for (_l = 0, _len3 = _ref3.length; _l < _len3; _l++) {
     source = _ref3[_l];
     scripts = scripts.concat(load(path.normalize(source), false, true));
@@ -129,7 +129,7 @@ soma.init = function() {
         }
       });
     });
-    port = process.env.PORT || packageJSON.soma.port || 8000;
+    port = process.env.PORT || soma.config.port || 8000;
     server.listen(port);
     return console.log("Soma listening on port " + port + "...");
   });
