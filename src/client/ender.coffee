@@ -1,19 +1,51 @@
 soma = require('soma')
 $ = ender
 
+soma.config.engine = 'browser'
 
 # Ender additions
+$.ender
+    enhance: -> $(document).enhance()
+    ajaj: (options) ->
+        options.method or= 'GET'
+        options.type = 'json'
+
+        options.headers or= {}
+        options.headers['X-CSRF-Token'] = @cookies.get('_csrf', {raw: true})
+        options.headers['Content-Type'] = 'application/json'
+    
+        if options.data and typeof options.data isnt 'string'
+            options.data = JSON.stringify(options.data)
+            
+        return $.ajax(options)
+
 $.ender({
+    enhance: ->
+        $('a[data-precache != "true"]:local-link(0)', @).each ->
+            path = @pathname
+
+            $(@).bind 'click', (event) ->
+                history.pushState(true, '', path)
+                soma.load(path)
+                event.stop()
+                return
+            
+        $('a[data-precache = "true"]:local-link(0)', @).each ->
+            $(@).bind 'click', soma.precache(@pathname)
+            return
+
     outerHTML: (html) ->
         if html then @each -> $(@).replaceWith(html)
         else @[0].outerHTML or new XMLSerializer().serializeToString(@[0])
 
 }, true)
 
+
 $('document').ready ->
     # We already have the HTML, but we need a context to create the views
     context = new soma.Context(document.location.pathname)
-    context.enhance()
+    context.views = soma._initialViews
+    conext.emit('render')
     
     # Implement client-side loading and precaching, when possible
     if history.pushState
@@ -28,19 +60,6 @@ $('document').ready ->
             
             soma.load(document.location.pathname)
         
-        $('a[data-precache != "true"]:local-link(0)').each ->
-            path = @pathname
-
-            $(@).bind 'click', (event) ->
-                history.pushState(true, '', path)
-                soma.load(path)
-                event.stop()
-                return
-            
-        $('a[data-precache = "true"]:local-link(0)').each ->
-            $(@).bind 'click', soma.precache(@pathname)
-            return
-
 
 soma.precache = (path) ->
     if history.pushState
@@ -73,10 +92,16 @@ class soma.Context extends soma.Context
         @built = false
         @rendered = false
         @stopped = false
-
-        @on 'render', ->
-            for form in $('form')
-                $(form).append("<input type=\"hidden\" name=\"_csrf\" value=\"#{$.jar.get('_csrf', {raw:true})}\" />")
+        
+        @on 'render', =>
+            $.enhance()
+            
+            context = @
+            for url in @views
+                @loadCode url, ['soma'], (err, fn) ->
+                    throw err if err            
+                    fn.apply(context, soma)
+                    return
 
     begin: ->
         @results = soma.router.run(@path, @)
@@ -306,8 +331,6 @@ class soma.Context extends soma.Context
         _success = options.success
         _error = options.error
 
-        options.headers or= {}
-        options.headers['X-CSRF-Token'] = @cookies.get('_csrf', {raw: true})
         options.url = @resolve(options.url)
 
         options.success = (data) =>

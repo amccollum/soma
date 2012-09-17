@@ -6,6 +6,8 @@ multipart = require('./lib/multipart')
 
 soma = require('..')
 
+soma.config.engine = 'node'
+
 escapeXML = (s) ->
     return s.toString().replace /&(?!\w+;)|["<>]/g, (s) ->
         switch s 
@@ -135,6 +137,10 @@ class soma.Context extends soma.Context
             <html #{@manifest or ''}>
             <head>
                 #{(value for key, value of @head).join('\n    ')}
+                
+                <script>
+                    soma._intialViews = #{JSON.stringify(@views)};
+                </script>
             </head>
             <body>
                 #{body}
@@ -156,11 +162,11 @@ class soma.Context extends soma.Context
             contentLength = body.length
     
         else
-            if typeof body is 'object'
+            if typeof body is 'string'
+                contentType or= 'text/html'
+            else
                 body = JSON.stringify(body)
                 contentType or= 'application/json'
-            else
-                contentType or= 'text/html'
                 
             contentLength = Buffer.byteLength(body)
 
@@ -346,6 +352,7 @@ class soma.Context extends soma.Context
         options.url = @resolve(options.url)
         
         subcontext = @createSubcontext
+            body: options.data
             begin: -> soma.router.run(options.url, @)
 
             send: (statusCode, body) ->
@@ -357,9 +364,6 @@ class soma.Context extends soma.Context
                     options.error(statusCode, body, options) if options.error
                     return callback(statusCode, body)
 
-                if typeof body isnt 'object'
-                    throw new Error('API contexts can only send JSON.')
-
                 options.success(body) if options.success
                 callback(null, body)
 
@@ -369,3 +373,4 @@ class soma.Context extends soma.Context
 
         subcontext.begin()
         return
+        

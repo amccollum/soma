@@ -1,6 +1,8 @@
 soma = exports ? (@['soma'] = {})
 events = require('events')
 
+soma.config = {}
+
 soma.Router = require('route').Router
 
 soma.router = new soma.Router
@@ -28,41 +30,15 @@ soma.routes = (layout, routes) ->
                     @loadChunk chunk, (html) ->
                         @build(html)
 
-collect = (cls, fn, ob) ->
-    if Array.isArray(ob)
-        arr = ob
-        ob = {}
-        
-        for item in arr
-            ob[item.name] = item
-            
-    for name, item of ob
-        if typeof item is 'object'
-            # Convert object into subclass
-            item = class extends cls
-                for key, value of item
-                    @::[key] = value
-        
-        item::_src = soma._src
-        item::name = name
-        fn[name] = item
-        
-    return
-
-extend = (ob1, ob2) ->
-    for key, value of ob2
-        ob1[key] = value
-
-decamelize = (s) -> s and s.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase()
-
 
 _function_cache = {}
 
 # Placeholder class to inherit from
-class soma.Context
+class soma.Context extends events.EventEmitter
     constructor: () ->
         @modules = {}
         @globals = {}
+        @views = []
         @url = '/'
     
     _dd =
@@ -131,6 +107,13 @@ class soma.Context
         
         return
         
+    loadView: (url, callback) ->
+        @views.append(url)
+        @loadScript
+            src: url
+            type: 'text/plain'
+            callback
+        
     loadModule: (url, force, callback) ->
         url = @resolve(url)
         
@@ -160,57 +143,6 @@ class soma.Context
                     @[name] = value
                     
                 return
-
-
-class soma.EventMonitor extends events.EventEmitter
-    events: []
-    constructor: ->
-        for event in @events
-            @on event, @[event] if event of @
-
-
-
-class soma.Widget extends soma.EventMonitor
-    defaults: {}
-    constructor: (options) ->
-        @options = {}
-        extend(@options, @defaults)
-        extend(@options, options)
-        super(@options)
-
-        @status = null
-
-    emit: (event) ->
-        if event in @events
-            @status = event
-            
-        super
-
-
-# View is only used client-side
-class soma.View extends soma.Widget
-    events: ['create', 'complete', 'destroy']
-
-    constructor: ->
-        super
-        
-        # Convenience methods
-        @context = @options.context
-        @cookies = @context.cookies
-        @go = => @context.go.apply(@context, arguments)
-
-        dataName = decamelize(@name)
-
-        @el = $(@options.el)
-        @el.data(dataName, this)
-        @el.one 'remove', (event) =>
-            if event.target is @el[0]
-                @el.data(dataName, null)
-                @emit('destroy')
-        
-        @emit('create')
-
-    $: (selector) -> $(selector, @el)
 
 
 # Load node-specific code on the server

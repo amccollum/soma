@@ -19,7 +19,7 @@ soma = require('soma');
 Line = require('line').Line;
 
 loadFiles = function(source, api, tree, files, callback) {
-  var abs, basename, encoding, url, watcher, _ref;
+  var abs, basename, data, encoding, url, watcher, _ref;
   if (tree == null) {
     tree = {};
   }
@@ -29,7 +29,7 @@ loadFiles = function(source, api, tree, files, callback) {
   basename = path.basename(source);
   if (fs.statSync(source).isDirectory()) {
     watcher = fs.watch(source, function() {
-      var l;
+      var name, _i, _len, _ref, _results;
       if (!path.existsSync(source)) {
         console.log('Directory went missing: ', source);
         delete tree[basename];
@@ -37,34 +37,21 @@ loadFiles = function(source, api, tree, files, callback) {
         return;
       }
       tree[basename] = {};
-      return l = new Line({
-        error: function(err) {
-          throw err;
+      _ref = fs.readdirSync(source);
+      _results = [];
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        name = _ref[_i];
+        if (name[0] === '.') {
+          continue;
         }
-      }, function() {
-        return fs.readdir(source, line.wait());
-      }, function(names) {
-        var name, _i, _len, _results;
-        _results = [];
-        for (_i = 0, _len = names.length; _i < _len; _i++) {
-          name = names[_i];
-          if (name[0] === '.') {
-            continue;
-          }
-          _results.push(loadFiles("" + source + "/" + name, api, tree[basename], files = {}, line.wait()));
-        }
-        return _results;
-      }, function() {
-        return callback(tree);
-      });
+        _results.push(loadFiles("" + source + "/" + name, api, tree[basename], files = {}, line.wait()));
+      }
+      return _results;
     });
     watcher.emit('change');
   } else {
     abs = "" + (process.cwd()) + "/" + source;
     url = "/" + source;
-    if ((_ref = mime.lookup(source).slice(0, 4)) === 'text') {
-      encoding = 'utf8';
-    }
     if (name.slice(-3) === '.js') {
       if (api || name === '_init.js') {
         soma._src = url;
@@ -76,14 +63,12 @@ loadFiles = function(source, api, tree, files, callback) {
       }
     }
     if (!api) {
-      fs.readFile(source, encoding, function(err, data) {
-        if (err) {
-          return callback.apply(this, arguments);
-        }
-        tree[basename] = url;
-        files[url] = data;
-        callback(null, tree);
-      });
+      if ((_ref = mime.lookup(source).slice(0, 4)) === 'text') {
+        encoding = 'utf8';
+      }
+      data = fs.readFileSync(source, encoding);
+      tree[basename] = url;
+      files[url] = data;
     }
   }
 };
@@ -141,12 +126,16 @@ Bundle = (function() {
 })();
 
 soma.load = function() {
-  var _base, _base1;
+  var key, value, _base, _base1, _ref;
   soma.files = {};
   soma.tree = {};
   soma.bundles = {};
   soma.scripts = ['ender.js'];
-  soma.config = require('./package.json');
+  _ref = require('./package.json').soma;
+  for (key in _ref) {
+    value = _ref[key];
+    soma.config[key] = value;
+  }
   (_base = soma.config).api || (_base.api = 'api');
   (_base1 = soma.config).app || (_base1.app = 'app');
   loadFiles(soma.config.api, true, soma.tree, soma.files);

@@ -22,29 +22,19 @@ loadFiles = (source, api, tree={}, files={}, callback) ->
 
             tree[basename] = {}
         
-            l = new Line
-                error: (err) -> throw err
-
-                -> fs.readdir(source, line.wait())
-
-                (names) ->
-                    for name in names
-                        if name[0] == '.'
-                            continue
-                            
-                        loadFiles("#{source}/#{name}", api, tree[basename], files={}, line.wait())
+            for name in fs.readdirSync(source)
+                if name[0] == '.'
+                    continue
+                
+                loadFiles "#{source}/#{name}", api, tree[basename], files={}, line.wait()
                         
-                -> callback(tree)
 
         watcher.emit('change')
-
+        
     else
         abs = "#{process.cwd()}/#{source}"
         url = "/#{source}"
         
-        if mime.lookup(source).slice(0, 4) in ['text']
-            encoding = 'utf8'
-
         if name.slice(-3) == '.js'
             if api or name == '_init.js'
                 soma._src = url
@@ -55,14 +45,13 @@ loadFiles = (source, api, tree={}, files={}, callback) ->
                 soma.scripts.push(url)
         
         if not api
-            fs.readFile source, encoding, (err, data) ->
-                return callback.apply(@, arguments) if err
-            
-                tree[basename] = url
-                files[url] = data
-            
-                callback(null, tree)
-                return
+            if mime.lookup(source).slice(0, 4) in ['text']
+                encoding = 'utf8'
+
+            data = fs.readFileSync(source, encoding)
+        
+            tree[basename] = url
+            files[url] = data
         
     return
     
@@ -119,10 +108,13 @@ soma.load = ->
     soma.bundles = {}
     soma.scripts = ['ender.js']
     
-    soma.config = require('./package.json')
+    for key, value of require('./package.json').soma
+        soma.config[key] = value
+        
     soma.config.api or= 'api'
     soma.config.app or= 'app'
 
+    
     loadFiles(soma.config.api, true, soma.tree, soma.files)
     loadFiles(soma.config.app, false, soma.tree, soma.files)
     loadFiles('bundles', soma.tree, soma.files)
