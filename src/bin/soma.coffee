@@ -61,7 +61,8 @@ load = (source, exec, serve) ->
 soma.init = () ->
     soma.files = {}
     
-    soma.config = JSON.parse(fs.readFileSync('package.json')).soma
+    for key, value of JSON.parse(fs.readFileSync('package.json')).soma
+        soma.config[key] = value
 
     for source in soma.config.shared
         load(path.normalize(source), true, true)

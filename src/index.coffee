@@ -1,6 +1,7 @@
 soma = exports ? (@['soma'] = {})
 events = require('events')
 
+soma.config = {}
 soma.Router = require('route').Router
 
 soma.router = new soma.Router

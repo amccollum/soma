@@ -1,6 +1,8 @@
 soma = require('soma')
 $ = ender
 
+soma.config.engine = 'browser'
+
 
 # Ender additions
 $.ender({

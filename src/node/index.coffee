@@ -6,6 +6,8 @@ multipart = require('./lib/multipart')
 
 soma = require('..')
 
+soma.config.engine = 'node'
+
 escapeXML = (s) ->
     return s.toString().replace /&(?!\w+;)|["<>]/g, (s) ->
         switch s 
