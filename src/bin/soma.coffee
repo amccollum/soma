@@ -2,6 +2,7 @@ domain = require('domain')
 http = require('http')
 fs = require('fs')
 path = require('path')
+zlib = require('zlib')
 
 mime = require('../lib/node/lib/mime')
 soma = require('soma')
@@ -97,17 +98,31 @@ soma.init = () ->
 
             requestDomain.run ->
                 if request.url of soma.files
-                    contentType = mime.lookup(request.url)
                     content = soma.files[request.url]
             
-                    if content instanceof Buffer
-                        contentLength = content.length
+                    sendContent = (err, content) ->
+                        throw err if err
+                        
+                        response.setHeader('Content-Type', mime.lookup(request.url))
+                        response.setHeader('Content-Length', content.length)
+                        response.setHeader('Content-Encoding', contentEncoding)
+                        response.end(content)
+
+                    acceptEncoding = request.headers['accept-encoding'] or ''
+                    if acceptEncoding.match(/\bdeflate\b/)
+                        contentEncoding = 'deflate'
+                        zlib.deflate content, sendContent
+                            
+                    else if acceptEncoding.match(/\bgzip\b/)
+                        contentEncoding = 'gzip'
+                        zlib.gzip content, sendContent
+                        
                     else
-                        contentLength = Buffer.byteLength(content)
-            
-                    response.setHeader('Content-Type', contentType)
-                    response.setHeader('Content-Length', contentLength)
-                    response.end(content)
+                        if content not instanceof Buffer
+                            content = new Buffer(content)
+
+                        contentEncoding = 'identity'
+                        sendContent(null, content)
             
                 else
                     context = new soma.ClientContext(request, response, scripts)
