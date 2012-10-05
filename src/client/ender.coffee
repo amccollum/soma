@@ -11,7 +11,7 @@ $.ender
         options.type = 'json'
 
         options.headers or= {}
-        options.headers['X-CSRF-Token'] = @cookies.get('_csrf', {raw: true})
+        options.headers['X-CSRF-Token'] = @cookies.get('_csrf_token', {raw: true})
         options.headers['Content-Type'] = 'application/json'
     
         if options.data and typeof options.data isnt 'string'
@@ -45,7 +45,7 @@ $('document').ready ->
     # We already have the HTML, but we need a context to create the views
     context = new soma.Context(document.location.pathname)
     context.views = soma._initialViews
-    conext.emit('render')
+    context.emit('render')
     
     # Implement client-side loading and precaching, when possible
     if history.pushState
@@ -93,18 +93,30 @@ class soma.Context extends soma.Context
         @rendered = false
         @stopped = false
         
+        if (m = /(.*?)(#.*)/.exec(@path))
+            @path = m[1]
+            @hash = m[2]
+            
+        if (m = /(.*?)(\?.*)?/.exec(@path))
+            @pathname = m[1]
+            @search = m[2]
+        
+        @query = {}
+        while (m = /([^=]*)=([^&]*)(&|$)/g.exec(@search))
+            @query[decodeURIComponent(m[1])] = decodeURIComponent(m[2])
+        
         @on 'render', =>
             $.enhance()
             
             context = @
             for url in @views
-                @loadCode url, ['soma'], (err, fn) ->
-                    throw err if err            
-                    fn.apply(context, soma)
+                @loadCode url, ['require'], (err, fn) ->
+                    throw err if err
+                    fn.call(context, require)
                     return
 
     begin: ->
-        @results = soma.router.run(@path, @)
+        @results = soma.router.run(@pathname, @)
         @render() if not @lazy
         
         return
@@ -144,7 +156,7 @@ class soma.Context extends soma.Context
                 @rendered = true
                 @emit('render')
             
-        if @html then done() else @on 'build', done
+        if @built then done() else @on 'build', done
         return
         
     go: (path, replace) ->
@@ -261,16 +273,11 @@ class soma.Context extends soma.Context
             el.attr(attributes)
 
         if el.attr('data-loading')
-            done = @wait(callback)
-            el.bind 'load', =>
-                done(el)
-
-            el.bind 'error', () =>
-                @emit('error', 'loadElement', tag, attributes, text)
-                done(el)
+            el.bind 'load', => callback(null, el)
+            el.bind 'error', => callback(new Error('loadElement failed'), tag, attributes, text)
 
         else if callback
-            callback(el)
+            callback(null, el)
 
         return el
 
@@ -278,13 +285,13 @@ class soma.Context extends soma.Context
         url = @resolve(url)
         
         if url of soma.bundled
-            sha = soma.bundled[url]
+            hash = soma.bundled[url]
             attributes =
-                src: "/bundles/#{sha}.js"
+                src: "/bundles/#{hash}.js"
                 type: 'text/javascript'
         
             @loadElement 'script', attributes, null, (err) ->
-                return callback.apply(this, arguments) if err
+                return callback(arguments...) if err
                 callback(null, soma.bundles[sha][url])
         
         else
@@ -293,28 +300,43 @@ class soma.Context extends soma.Context
                 type: 'text/plain'
         
             @loadElement 'script', attributes, null, (err, el) ->
-                return callback.apply(this, arguments) if err
+                return callback(arguments...) if err
                 callback(null, el.text())
         
         return
 
-    loadScript: (attributes, callback) ->
+    loadScript: (attributes, text, callback) ->
+        if typeof text is 'function'
+            callback = text
+            text = null
+            
         if typeof attributes is 'string'
             attributes = { src: attributes }
-
-        attributes.src = @resolve(attributes.src)
-        attributes.type = 'text/javascript'
-        @loadElement 'script', attributes, null, callback
+            
+        attributes.src and= @resolve(attributes.src)
+        attributes.type or= 'text/javascript'
+        @loadElement 'script', attributes, text, callback
         return
 
-    loadStylesheet: (attributes, callback) ->
+    loadStylesheet: (attributes, text, callback) ->
+        if typeof text is 'function'
+            callback = text
+            text = null
+            
         if typeof attributes is 'string'
             attributes = { href: attributes }
 
-        attributes.href = @resolve(attributes.href)
-        attributes.type = 'text/css'
-        attributes.rel = 'stylesheet'
-        @loadElement 'link', attributes, null, callback
+        if attributes.href
+            tag = 'link'
+            attributes.href = @resolve(attributes.href)
+            attributes.rel or= 'stylesheet'
+            attributes.type or= 'text/css'
+            attributes.charset or= 'utf8'
+            
+        else
+            tag = 'style'
+
+        @loadElement tag, attributes, text, callback
         return
 
     loadImage: (attributes, callback) ->
@@ -322,7 +344,7 @@ class soma.Context extends soma.Context
             attributes = { src: attributes }
 
         attributes.src = @resolve(attributes.src)
-        @loadElement 'img', attributes, null, callback
+        el = @loadElement 'img', attributes, null, callback
         el.toString = -> el.outerHTML()
             
         return

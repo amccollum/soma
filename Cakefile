@@ -9,13 +9,13 @@ execCmds = (cmds) ->
 
 task 'build', 'Compile to JS', ->
     execCmds [
-        'coffee --compile --output lib src/*.coffee'
-        
-        'coffee --compile --bare --output lib/node/lib src/node/lib/*.coffee'
-        'coffee --compile --bare --output lib/node src/node/*.coffee'
+        'coffee --compile --bare --output cmds cmds/*.coffee'
 
+        'coffee --compile --bare --output lib src/*.coffee'
         'coffee --compile --bare --output lib/client src/client/*.coffee'
-        
+        'coffee --compile --bare --output lib/node src/node/*.coffee'
+        'coffee --compile --bare --output lib/node/lib src/node/lib/*.coffee'
+
         'mkdir -p bin'
         'echo "#!/usr/bin/env node" > bin/soma'
         'coffee --compile --bare --print src/bin/soma.coffee >> bin/soma'

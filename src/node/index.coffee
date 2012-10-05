@@ -1,3 +1,4 @@
+crypto = require('crypto')
 jar = require('jar')
 querystring = require('querystring')
 url = require('url')
@@ -72,9 +73,6 @@ class Element
 
 
 class soma.Context extends soma.Context
-    inlineScripts: false
-    inlineStylesheets: false
-    
     constructor: (@request, @response, scripts) ->
         super
 
@@ -84,7 +82,6 @@ class soma.Context extends soma.Context
 
         @cookies = new jar.Jar(@request, @response, ['$ecret']) # FIX THIS!
         @head = {}
-        @data = @query
         
         @addHeadElement(new Element('title'))
         @addHeadElement(new Element('meta', { charset: 'utf-8' }))
@@ -115,11 +112,7 @@ class soma.Context extends soma.Context
         return
         
     route: () ->
-        if @body
-            for key, value of @body
-                @data[key] = value
-                
-        results = soma.router.run(@path, @)
+        results = soma.router.run(@pathname, @)
 
         # Allow for a default route
         if not results.length
@@ -132,14 +125,15 @@ class soma.Context extends soma.Context
 
     build: (body) ->
         @emit 'build', body
-        @send """
+        html = """
             <!doctype html>
             <html #{@manifest or ''}>
             <head>
                 #{(value for key, value of @head).join('\n    ')}
                 
-                <script>
-                    soma._intialViews = #{JSON.stringify(@views)};
+                <script type="text/javascript">
+                    soma._initialViews = #{JSON.stringify(@views)};
+                    soma.bundled = #{JSON.stringify(soma.bundled)};
                 </script>
             </head>
             <body>
@@ -147,6 +141,16 @@ class soma.Context extends soma.Context
             </body>
             </html>
         """
+        
+        if @cookies.get('_csrf_token', {raw: true})
+            @send(html)
+            
+        else
+            crypto.randomBytes 32, (err, buf) =>
+                throw err if err
+                @cookies.set('_csrf_token', buf.toString('hex'), {raw: true})
+                @send(html)
+        
         return
 
     send: (statusCode, body, contentType) ->
@@ -169,9 +173,6 @@ class soma.Context extends soma.Context
                 contentType or= 'application/json'
                 
             contentLength = Buffer.byteLength(body)
-
-        if not @cookies.get('_csrf', {raw: true})
-            @cookies.set('_csrf', Math.random().toString().substr(2), {raw: true})
 
         @response.statusCode = statusCode
         @response.setHeader('Content-Type', contentType)
@@ -201,7 +202,7 @@ class soma.Context extends soma.Context
         chunks = []
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
-            if @request.method == 'GET' or @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
+            if @request.method == 'GET' or @request.headers['x-csrf-token'] == @cookies.get('_csrf_token', {raw: true})
                 @body = JSON.parse(chunks.join('') or 'null')
                 @route()
             else
@@ -215,7 +216,7 @@ class soma.Context extends soma.Context
 
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', =>
-            if @request.headers['x-csrf-token'] == @cookies.get('_csrf', {raw: true})
+            if @request.headers['x-csrf-token'] == @cookies.get('_csrf_token', {raw: true})
                 @body[@request.headers['x-file-name']] = combineChunks(chunks)
                 @route(data)
             else
@@ -226,7 +227,7 @@ class soma.Context extends soma.Context
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
             @body = querystring.parse(chunks.join(''))
-            if @request.method == 'GET' or @body._csrf == @cookies.get('_csrf', {raw: true})
+            if @request.method == 'GET' or @body._csrf == @cookies.get('_csrf_token', {raw: true})
                 delete @body._csrf
                 @route()
             else
@@ -246,7 +247,7 @@ class soma.Context extends soma.Context
             stream.on 'end', () => @body[stream.name] = combineChunks(chunks)
         
         formData.on 'end', () =>
-            if @body._csrf == @cookies.get('_csrf', {raw: true})
+            if @body._csrf == @cookies.get('_csrf_token', {raw: true})
                 delete @body._csrf
                 @route(data)
             else
@@ -289,52 +290,66 @@ class soma.Context extends soma.Context
         return el
         
     loadFile: (url, callback) ->
+        url = @resolve(url)
+
         if url of soma.files
             callback(null, soma.files[url])
         else
-            callback(new Error("File '#{name}'could not be found"))
+            callback(new Error("File '#{url}' could not be found"))
             
         return
 
-    loadScript: (attributes, callback) ->
+    loadScript: (attributes, text, callback) ->
+        if typeof text is 'function'
+            callback = text
+            text = null
+            
         if typeof attributes is 'string'
             attributes = { src: attributes }
+            
+        attributes.type or= 'text/javascript'
+        attributes.charset or= 'utf8'
 
-        attributes.src = @resolve(attributes.src)
-        attributes.type = 'text/javascript'
-        attributes.charset = 'utf8'
+        if attributes.src
+            attributes.src = @resolve(attributes.src)
+            
+            if soma.config.inlineScripts and attributes.src of soma.files or attributes['type'] != 'text/javascript'
+                text = soma.files[attributes.src]
+                attributes['data-src'] = attributes.src
+                delete attributes.src
 
-        if @inlineScripts
-            text = soma.files[attributes.src]
-            attributes['data-src'] = attributes.src
-            delete attributes.src
-
-        else
-            # attributes['defer'] = 'defer'
-            attributes['data-loading'] = 'loading'
-            attributes['onload'] = "this.removeAttribute('data-loading');"
+            else
+                # attributes['defer'] = 'defer'
+                attributes['data-loading'] = 'loading'
+                attributes['onload'] = "this.removeAttribute('data-loading');"
 
         @loadElement 'script', attributes, text, callback
         return
 
-    loadStylesheet: (attributes, callback) ->
+    loadStylesheet: (attributes, text, callback) ->
+        if typeof text is 'function'
+            callback = text
+            text = null
+            
         if typeof attributes is 'string'
             attributes = { href: attributes }
 
-        attributes.href = @resolve(attributes.href)
+        if attributes.href
+            attributes.href = @resolve(attributes.href)
 
-        if @inlineStylesheets
-            tag = 'style'
-            text = soma.files[attributes.href]
-            attributes['data-href'] = attributes.href
-            delete attributes.href
-        else
-            attributes.rel = 'stylesheet'
-
-        attributes.type = 'text/css'
-        attributes.charset = 'utf8'
-
-        @loadElement 'link', attributes, text, callback
+            if soma.config.inlineStylesheets and attributes.href of soma.files
+                tag = 'style'
+                text = soma.files[attributes.href]
+                attributes['data-href'] = attributes.href
+                delete attributes.href
+                
+            else
+                attributes.rel or= 'stylesheet'
+                attributes.type or= 'text/css'
+                attributes.charset or= 'utf8'
+            
+        tag = if attributes.href then 'link' else 'style'
+        @loadElement tag, attributes, text, callback
         return
 
     loadImage: (attributes, callback) ->

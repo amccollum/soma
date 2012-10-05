@@ -1,34 +1,34 @@
 soma = exports ? (@['soma'] = {})
 events = require('events')
 
+soma.bundled = {}
 soma.config = {}
 
 soma.Router = require('route').Router
 
 soma.router = new soma.Router
-soma.routes = (layout, routes) ->
-    if typeof layout isnt 'string'
-        routes = layout
-        layout = null
-        
+soma.routes = (routes) ->
     for expr, fn of routes
-        soma.router.add expr, (@params) ->
-            if @params
-                for key, value of @params
-                    @data[key] = value
-                    
-            if typeof fn is 'function'
-                fn.call(@, @params)
-                
-            else
-                chunk = fn
-                if layout
-                    @loadChunk layout, {chunk: chunk}, (html) ->
-                        @build(html)
+        if typeof fn is 'function'
+            soma.router.add expr, fn
 
-                else
-                    @loadChunk chunk, (html) ->
-                        @build(html)
+        else if expr == 'layout'
+            layout = fn
+
+        else 
+            do (chunk=fn) ->
+                soma.router.add expr, (@params) ->
+                    if layout
+                        @loadChunk layout, {chunk: chunk}, (err, html) =>
+                            throw err if err
+                            @build(html)
+
+                    else
+                        @loadChunk chunk, (err, html) =>
+                            throw err if err
+                            @build(html)
+                            
+    return
 
 
 _function_cache = {}
@@ -41,50 +41,42 @@ class soma.Context extends events.EventEmitter
         @views = []
         @url = '/'
     
-    _dd =
-        '/./': /// /\./ ///g
-        '/.$': /// /\.$ ///
-        '^/../': /// ^ /\.\./ ///
-        '/../': /// (/([^/]*))? /\.\./ ///
-        '/..$': /// (/([^/]*))? /\.\.$ ///
-
     resolve: (url) ->
-        if /^https?:/.test(url)
+        if url.charAt(0) == '/' or /^https?:/.test(url)
             return url
-            
-        else if url.charAt('/') != '/'
-            url = @url.replace(/\/[^\/]*$/, '') + url
-            
-        # Non-trailing single dots
-        url = url.replace(@_dd['/./'], '/')
         
-        # Trailing single dots
-        url = url.replace(@_dd['/.$'], '/')
+        if ~(i = @url.lastIndexOf('/'))
+            url = @url.substr(0, i+1) + url
+
+        parts = url.substr(1).split('/')
+        while ~(i = parts.indexOf('.'))
+            parts.splice(i, 1)
+
+        while ~(i = parts.indexOf('..'))
+            if i then parts.splice(i-1, 2)
+            else parts.shift()
         
-        # Non-trailing double dots
-        while @_dd['/../'].test(url)
-            url = url.replace(@_dd['/../'], '/')
-        
-        # Trailing double dots
-        url = url.replace(@_dd['/..$'], '/')
-        
-        return url
+        return '/' + parts.join('/')
     
-    loadCode: (url, args=[], callback) ->
+    loadCode: (url, params=[], callback) ->
         url = @resolve(url)
         
-        if typeof args is 'function'
-            callback = args
+        if typeof params is 'function'
+            callback = params
             args = []
         
-        key = [url].concat(args).join(',')
+        key = [url].concat(params).join(':')
         
         if key of _function_cache
             callback(null, _function_cache[key])
         else
             @loadFile url, (err, js) ->
-                callback.apply(@, arguments) if err
-                callback(null, (_function_cache[key] = Function.apply(null, args.concat([js]))))
+                return callback(arguments...) if err
+                
+                # Add source URL for better debugging
+                js += "\n//@ sourceURL=#{url}"
+                
+                callback(null, (_function_cache[key] = Function.apply(null, params.concat([js]))))
                 return
                 
         return
@@ -94,21 +86,21 @@ class soma.Context extends events.EventEmitter
         
         if typeof data is 'function'
             callback = data
-            data = undefined
+            data = {}
         
         subcontext = @createSubcontext
-            build: (html) -> callback(null, html)
             url: url
+            data: data
     
-        @loadCode url, ['soma', 'data'], (err, fn) ->
-            callback.apply(this, arguments) if err            
-            fn.apply(subcontext, soma, data)
+        @loadCode url, ['require', 'callback'], (err, fn) ->
+            return callback(arguments...) if err
+            fn.call(subcontext, require, callback)
             return
         
         return
         
     loadView: (url, callback) ->
-        @views.append(url)
+        @views.push(url)
         @loadScript
             src: url
             type: 'text/plain'
@@ -124,11 +116,11 @@ class soma.Context extends events.EventEmitter
         if url of @modules
             callback(null, @modules[url].exports)
         
-        @loadCode url, ['module', 'exports', 'soma'], (err, fn) =>
-            callback.apply(this, arguments) if err
+        @loadCode url, ['require', 'module', 'exports'], (err, fn) =>
+            return callback(arguments...) if err
 
             @modules[url] = module = { exports: {} }
-            fn.apply(@globals, module, module.exports, soma)
+            fn.call(@globals, require, module, module.exports)
             
             callback(null, module.exports)
     
