@@ -1,31 +1,41 @@
 {
-    "name": "soma",
-    "version": "0.7.0",
-    "description": "A hybrid client/server web framework",
-    "keywords": ["framework", "ender"],
-    "author": "Andrew McCollum <amccollum@gmail.com>",
-    "url": "http://github.com/amccollum/soma",
-    "repositories": [{ "type": "git", "url": "https://github.com/amccollum/soma.git" }],
-    "licenses": [{ "type": "MIT", "url": "http://opensource.org/licenses/mit-license.php" }],
-    
-    "main": "lib/index.js",
-    "ender": "lib/client/ender.js",
-
-    "directories": {
-        "bin": "bin",
-        "lib": "lib",
-        "src": "src"
-    },
-    
-    "dependencies": {
-        "es5-basic": "*",
-        "ender-events": "*",
-        "domready": "*",
-        "bonzo": "*",
-        "bean": "*",
-        "reqwest": "*",
-        "ender-remove": "*",
-        "jar": "*",
-        "route": "*"
+  "name": "soma",
+  "version": "0.7.1",
+  "description": "A hybrid client/server web framework",
+  "keywords": [
+    "framework",
+    "ender"
+  ],
+  "author": "Andrew McCollum <amccollum@gmail.com>",
+  "url": "http://github.com/amccollum/soma",
+  "repositories": [
+    {
+      "type": "git",
+      "url": "https://github.com/amccollum/soma.git"
     }
+  ],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://opensource.org/licenses/mit-license.php"
+    }
+  ],
+  "main": "lib/index.js",
+  "ender": "lib/client/ender.js",
+  "directories": {
+    "bin": "bin",
+    "lib": "lib",
+    "src": "src"
+  },
+  "dependencies": {
+    "es5-basic": "*",
+    "ender-events": "*",
+    "domready": "*",
+    "bonzo": "*",
+    "bean": "*",
+    "reqwest": "*",
+    "ender-remove": "*",
+    "jar": "*",
+    "route": "*"
+  }
 }
