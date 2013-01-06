@@ -30,7 +30,6 @@ soma.routes = (routes) ->
                             
     return
 
-
 _function_cache = {}
 
 # Placeholder class to inherit from

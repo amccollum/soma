@@ -22,6 +22,7 @@ exports.bundle = ->
             mapping[url] = bundle.hash
         
     fs.writeFileSync('bundles.json', JSON.stringify(mapping), 'utf8')
+    return
 
 
 class Bundle

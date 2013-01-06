@@ -103,7 +103,7 @@ class soma.Context extends soma.Context
         contentType = @request.headers['content-type']
         contentType = contentType.split(/;/)[0] if contentType
         switch contentType
-            when undefined then @route({})
+            when undefined then @route()
             when 'application/x-www-form-urlencoded' then @_readUrlEncoded()
             when 'application/json' then @_readJSON()
             when 'application/octet-stream' then @_readBinary()
@@ -112,6 +112,9 @@ class soma.Context extends soma.Context
         return
         
     route: () ->
+        if not @_checkCSRF()
+            return @sendError(null, 'Bad/missing CSRF token')
+            
         results = soma.router.run(@pathname, @)
 
         # Allow for a default route
@@ -142,13 +145,13 @@ class soma.Context extends soma.Context
             </html>
         """
         
-        if @cookies.get('_csrf_token', {raw: true})
+        if @cookies.get('_csrf', {raw: true})
             @send(html)
             
         else
             crypto.randomBytes 32, (err, buf) =>
                 throw err if err
-                @cookies.set('_csrf_token', buf.toString('hex'), {raw: true})
+                @cookies.set('_csrf', buf.toString('hex'), {raw: true})
                 @send(html)
         
         return
@@ -198,15 +201,25 @@ class soma.Context extends soma.Context
         @response.end()
         return false
 
+    _checkCSRF: ->
+        token = @cookies.get('_csrf', {raw: true})
+        
+        if @request.method == 'GET'
+            return true
+        else if @body != null and @body._csrf == token
+            delete @body._csrf
+            return true
+        else if @request.headers['x-csrf-token'] == token
+            return true
+        else
+            return false
+        
     _readJSON: ->
         chunks = []
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
-            if @request.method == 'GET' or @request.headers['x-csrf-token'] == @cookies.get('_csrf_token', {raw: true})
-                @body = JSON.parse(chunks.join('') or 'null')
-                @route()
-            else
-                @sendError(null, 'Bad/missing _csrf token.')
+            @body = JSON.parse(chunks.join('') or 'null')
+            @route()
 
         return
     
@@ -216,22 +229,15 @@ class soma.Context extends soma.Context
 
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', =>
-            if @request.headers['x-csrf-token'] == @cookies.get('_csrf_token', {raw: true})
-                @body[@request.headers['x-file-name']] = combineChunks(chunks)
-                @route(data)
-            else
-                @sendError(null, 'Bad/missing _csrf token.')
+            @body[@request.headers['x-file-name']] = combineChunks(chunks)
+            @route(data)
             
     _readUrlEncoded: ->
         chunks = []
         @request.on 'data', (chunk) => chunks.push(chunk)
         @request.on 'end', () =>
             @body = querystring.parse(chunks.join(''))
-            if @request.method == 'GET' or @body._csrf == @cookies.get('_csrf_token', {raw: true})
-                delete @body._csrf
-                @route()
-            else
-                @sendError(null, 'Bad/missing _csrf token.')
+            @route()
 
         return
         
@@ -247,11 +253,8 @@ class soma.Context extends soma.Context
             stream.on 'end', () => @body[stream.name] = combineChunks(chunks)
         
         formData.on 'end', () =>
-            if @body._csrf == @cookies.get('_csrf_token', {raw: true})
-                delete @body._csrf
-                @route(data)
-            else
-                @sendError(null, 'Bad/missing _csrf token.')
+            delete @body._csrf
+            @route(data)
 
         formData.begin()
         return
@@ -364,6 +367,9 @@ class soma.Context extends soma.Context
         return
 
     loadData: (options, callback) ->
+        if typeof options is 'string'
+            options = { url: options }
+
         options.url = @resolve(options.url)
         
         subcontext = @createSubcontext

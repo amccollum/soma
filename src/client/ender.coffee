@@ -6,33 +6,20 @@ soma.config.engine = 'browser'
 # Ender additions
 $.ender
     enhance: -> $(document).enhance()
-    ajaj: (options) ->
-        options.method or= 'GET'
-        options.type = 'json'
-
-        options.headers or= {}
-        options.headers['X-CSRF-Token'] = @cookies.get('_csrf_token', {raw: true})
-        options.headers['Content-Type'] = 'application/json'
-    
-        if options.data and typeof options.data isnt 'string'
-            options.data = JSON.stringify(options.data)
-            
-        return $.ajax(options)
 
 $.ender({
     enhance: ->
-        $('a[data-precache != "true"]:local-link(0)', @).each ->
-            path = @pathname
-
-            $(@).bind 'click', (event) ->
-                history.pushState(true, '', path)
-                soma.load(path)
-                event.stop()
-                return
+        if history.pushState
+            $('a[data-precache != "true"]:local-link(0)', @).each ->
+                $(@).bind 'click', (event) ->
+                    history.pushState(true, '', @pathname)
+                    soma.load(@pathname)
+                    event.stop()
+                    return
             
-        $('a[data-precache = "true"]:local-link(0)', @).each ->
-            $(@).bind 'click', soma.precache(@pathname)
-            return
+            $('a[data-precache = "true"]:local-link(0)', @).each ->
+                $(@).bind 'click', soma.precache(@pathname)
+                return
 
     outerHTML: (html) ->
         if html then @each -> $(@).replaceWith(html)
@@ -65,7 +52,7 @@ soma.precache = (path) ->
     if history.pushState
         context = soma.load(path, true)
         return (event) ->
-            history.pushState({}, '', context.path)
+            history.pushState(true, '', context.path)
             context.render()
             event.stop() if event
             return
@@ -127,10 +114,6 @@ class soma.Context extends soma.Context
         else if @chunk
             throw new Error('Cannot send multiple chunks')
         
-        @chunk = chunk
-        while @chunk.meta
-            @chunk = @chunk.meta()
-
         @chunk.load(this)
         @render() if not @lazy
         return
@@ -350,11 +333,23 @@ class soma.Context extends soma.Context
         return
 
     loadData: (options, callback) ->
+        if typeof options is 'string'
+            options = { url: options }
+
         _success = options.success
         _error = options.error
 
         options.url = @resolve(options.url)
+        options.method or= 'GET'
+        options.type = 'json'
 
+        options.headers or= {}
+        options.headers['X-CSRF-Token'] = @cookies.get('_csrf', {raw: true})
+        options.headers['Content-Type'] = 'application/json'
+    
+        if options.data and typeof options.data isnt 'string'
+            options.data = JSON.stringify(options.data)
+            
         options.success = (data) =>
             _success(data) if _success
             callback(null, data)
@@ -363,5 +358,5 @@ class soma.Context extends soma.Context
             _error(xhr.status, xhr.response, options) if _error
             callback(xhr.status, xhr.response, options, xhr)
 
-        $.ajaj(options)
+        $.ajax(options)
         return

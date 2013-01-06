@@ -26,6 +26,8 @@ exports.run = ->
                 catch err
                     console.error('Error sending 500', request.url, err)
                     requestDomain.dispose()
+                    
+                return
 
             requestDomain.run ->
                 if request.url of soma.files
@@ -44,6 +46,7 @@ exports.run = ->
                         response.setHeader('Content-Length', contentLength)
                         response.setHeader('Content-Encoding', contentEncoding)
                         response.end(content)
+                        return
 
                     acceptEncoding = request.headers['accept-encoding'] or ''
                     if soma.config.compress and (m = acceptEncoding.match(/\b(deflate|gzip)\b/))
@@ -60,7 +63,13 @@ exports.run = ->
                 else
                     context = new soma.Context(request, response, soma.scripts)
                     context.begin()
+                    
+                return
 
         port = process.env.PORT or soma.config.port or 8000
         server.listen(port)
         console.log("Soma listening on port #{port}...")
+
+        return
+        
+    return

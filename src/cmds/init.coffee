@@ -3,7 +3,7 @@ fs = require('fs')
 soma = require('soma')
 
 exports.init = ->
-    defaults =
+    soma.config =
         compress: true
         inlineScripts: false
         inlineStylesheets: false
@@ -11,10 +11,13 @@ exports.init = ->
         app: ['app']
         api: ['api']
 
-    soma.config = JSON.parse(fs.readFileSync('package.json')).soma
+    packageJSON = require(process.cwd() + '/package')
     
-    for key, value of defaults
-        if key not of soma.config
-            soma.config[key] = value
+    for key, value of packageJSON.soma
+        soma.config[key] = value
 
-    
+    for dep of packageJSON.dependencies
+        if 'soma' in require(dep + '/package').keywords
+            require(dep)
+            
+    return
