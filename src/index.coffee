@@ -1,4 +1,4 @@
-soma = exports ? (@['soma'] = {})
+soma = exports
 events = require('events')
 
 soma.bundled = {}
@@ -7,28 +7,36 @@ soma.config = {}
 soma.Router = require('route').Router
 
 soma.router = new soma.Router
-soma.routes = (routes) ->
-    for expr, fn of routes
-        if typeof fn is 'function'
-            soma.router.add expr, fn
+soma.routes = (routes, prefix, layout) ->
+    for expr, block of routes
+        expr = (prefix or '/') + expr
+        
+        if typeof block is 'function'
+            soma.router.add expr, block
 
-        else if expr == 'layout'
-            layout = fn
+        else if typeof block is 'object'
+            some.routes(block, expr + '/', layout)
+
+        else if expr == '{layout}'
+            layout = block
 
         else 
-            do (chunk=fn) ->
+            do (chunk=block) ->
                 soma.router.add expr, (@params) ->
                     if layout
                         @loadChunk layout, {chunk: chunk}, (err, html) =>
                             throw err if err
                             @build(html)
+                            return
 
                     else
                         @loadChunk chunk, (err, html) =>
                             throw err if err
                             @build(html)
+                            return
                             
     return
+
 
 _function_cache = {}
 
