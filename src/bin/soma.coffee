@@ -1,7 +1,7 @@
 cmds = 
     init: require('../cmds/init').init
     bundle: require('../cmds/bundle').bundle
-    load: require('../cmds/init').load
+    load: require('../cmds/load').load
     run: require('../cmds/run').run
 
 cmds.init()
