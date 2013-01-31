@@ -116,11 +116,6 @@ class soma.Context extends soma.Context
             return @sendError(null, 'Bad/missing CSRF token')
             
         results = soma.router.run(@pathname, @)
-
-        # Allow for a default route
-        if not results.length
-            results = soma.router.run(null, @)
-        
         if not results.length
             @send(404)
 

@@ -7,7 +7,12 @@ soma.config = {}
 soma.Router = require('route').Router
 
 soma.router = new soma.Router
-soma.routes = (routes, prefix, layout) ->
+soma.routes = (layout, routes, prefix) ->
+    if typeof layout is 'object'
+        prefix = routes
+        routes = layout
+        layout = null
+    
     for expr, block of routes
         expr = (prefix or '/') + expr
         
@@ -15,12 +20,9 @@ soma.routes = (routes, prefix, layout) ->
             soma.router.add expr, block
 
         else if typeof block is 'object'
-            some.routes(block, expr + '/', layout)
+            some.routes(layout, block, expr + '/')
 
-        else if expr == '{layout}'
-            layout = block
-
-        else 
+        else if typeof block is 'string'
             do (chunk=block) ->
                 soma.router.add expr, (@params) ->
                     if layout
