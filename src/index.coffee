@@ -109,6 +109,8 @@ class soma.Context extends events.EventEmitter
         return
         
     loadView: (url, callback) ->
+        url = @resolve(url)
+        
         @views.push(url)
         @loadScript
             src: url
