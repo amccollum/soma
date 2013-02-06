@@ -15,6 +15,7 @@ soma.routes = (layout, routes, prefix) ->
     
     for expr, block of routes
         expr = (prefix or '/') + expr
+        expr = expr.replace(/\/\//g, '/')
         
         if typeof block is 'function'
             soma.router.add expr, block
