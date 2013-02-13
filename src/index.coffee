@@ -45,8 +45,6 @@ _function_cache = {}
 # Placeholder class to inherit from
 class soma.Context extends events.EventEmitter
     constructor: () ->
-        @modules = {}
-        @globals = {}
         @views = []
         @url = '/'
     
@@ -66,7 +64,7 @@ class soma.Context extends events.EventEmitter
             else parts.shift()
         
         return '/' + parts.join('/')
-    
+        
     loadCode: (url, params=[], callback) ->
         url = @resolve(url)
         
@@ -87,7 +85,7 @@ class soma.Context extends events.EventEmitter
                 
                 callback(null, (_function_cache[key] = Function.apply(null, params.concat([js]))))
                 return
-                
+        
         return
 
     loadChunk: (url, data, callback) ->
@@ -95,12 +93,14 @@ class soma.Context extends events.EventEmitter
         
         if typeof data is 'function'
             callback = data
-            data = {}
+            data = undefined
+        
+        callback or= (err) -> throw err if err
         
         subcontext = @createSubcontext
             url: url
             data: data
-    
+        
         @loadCode url, ['require', 'callback'], (err, fn) ->
             return callback(arguments...) if err
             fn.call(subcontext, require, callback)
@@ -117,24 +117,6 @@ class soma.Context extends events.EventEmitter
             type: 'text/plain'
             callback
         
-    loadModule: (url, force, callback) ->
-        url = @resolve(url)
-        
-        if typeof force is 'function'
-            callback = force
-            force = undefined
-        
-        if url of @modules
-            callback(null, @modules[url].exports)
-        
-        @loadCode url, ['require', 'module', 'exports'], (err, fn) =>
-            return callback(arguments...) if err
-
-            @modules[url] = module = { exports: {} }
-            fn.call(@globals, require, module, module.exports)
-            
-            callback(null, module.exports)
-    
     createSubcontext: (attributes) ->
         parent = @
         return new class

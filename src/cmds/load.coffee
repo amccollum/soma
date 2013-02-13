@@ -70,5 +70,20 @@ loadFiles = (source, tree, api) ->
             soma.files[url] = data
         
     return
-    
 
+
+# buildDefaultRoutes = (tree) ->
+#     result = {}
+#     
+#     for name, subtree of tree
+#         if typeof subtree is 'object'
+#             return buildRoutes(subtree)
+#             
+#         else if /// .chunk.js$ ///.test(name)
+#             return subtree
+# 
+# 
+# generateInit = (tree) -> """
+#     require('soma').routes(#{JSON.stringify(buildDefaultRoutes(tree))});
+#     """
+# 

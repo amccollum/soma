@@ -95,12 +95,9 @@ class soma.Context extends soma.Context
         @on 'render', =>
             $.enhance()
             
-            context = @
             for url in @views
-                @loadCode url, ['require'], (err, fn) ->
-                    throw err if err
-                    fn.call(context, require)
-                    return
+                # We execute the views as chunks with no callback
+                @loadChunk(url)
 
     begin: ->
         @results = soma.router.run(@pathname, @)

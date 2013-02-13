@@ -87,7 +87,7 @@ class soma.Context extends soma.Context
         @addHeadElement(new Element('meta', { charset: 'utf-8' }))
         
         for script in scripts
-            # This is techincally async, but isn't on the server
+            # This is an async call, but it's synchronous on the server
             @loadScript(script)
         
     addHeadElement: (el) ->
