@@ -84,7 +84,7 @@ class soma.Context extends soma.Context
             @path = m[1]
             @hash = m[2]
             
-        if (m = /(.*?)(\?.*)?/.exec(@path))
+        if (m = /([^?]*)(\?.*)?/.exec(@path))
             @pathname = m[1]
             @search = m[2]
         

@@ -25,10 +25,10 @@ exports.load = ->
         
 loadFiles = (source, tree, api) ->
     basename = path.basename(source)
-    
     return if not fs.existsSync(source)
     
     if fs.statSync(source).isDirectory()
+        # This is broken and will re-watch subdirectories on changes
         watcher = fs.watch source, ->
             if not path.existsSync(source)
                 console.log('Directory went missing: ', source)
@@ -37,7 +37,6 @@ loadFiles = (source, tree, api) ->
                 return
 
             tree[basename] = {}
-        
             for name in fs.readdirSync(source)
                 if name[0] == '.'
                     continue
