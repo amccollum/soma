@@ -95,9 +95,21 @@ class soma.Context extends soma.Context
         @on 'render', =>
             $.enhance()
             
-            for url in @views
-                # We execute the views as chunks with no callback
-                @loadChunk(url)
+            loadView = ->
+                return if not @views.length
+                    
+                url = @views.shift()
+                @loadScript { src: url, type: 'text/plain' }, (el) ->
+                    data = JSON.parse(el.attr('data-json'))
+                    async = JSON.parse(el.attr('data-async'))
+                    
+                    @loadChunk url, data, (err) ->
+                        throw err if err
+                        loadView() if async
+                        
+                    loadView() if not async
+
+            loadView()
 
     begin: ->
         @results = soma.router.run(@pathname, @)

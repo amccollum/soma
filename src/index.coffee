@@ -96,26 +96,37 @@ class soma.Context extends events.EventEmitter
             callback = data
             data = undefined
         
-        callback or= (err) -> throw err if err
-        
         subcontext = @createSubcontext
             url: url
             data: data
         
         @loadCode url, ['require', 'callback'], (err, fn) ->
-            return callback(arguments...) if err
+            if err
+                if callback then return callback(arguments...)
+                else throw err
+                    
             fn.call(subcontext, require, callback)
             return
         
         return
         
-    loadView: (url, callback) ->
+    loadView: (url, data, async, callback) ->
         url = @resolve(url)
+        
+        if typeof async is 'function'
+            callback = async
+            async = undefined
+        
+        if typeof data is 'function'
+            callback = data
+            data = undefined
         
         @views.push(url)
         @loadScript
             src: url
             type: 'text/plain'
+            'data-json': JSON.stringify(data or null)
+            'data-async': JSON.stringify(async or false)
             callback
         
     createSubcontext: (attributes) ->
