@@ -63,6 +63,8 @@ soma.precache = (path) ->
             if @pathname != path
                 document.location = path
                 event.stop() if event
+                
+            return
 
 
 soma.load = (path, lazy) ->
@@ -106,10 +108,13 @@ class soma.Context extends soma.Context
                     @loadChunk url, data, (err) ->
                         throw err if err
                         loadView() if async
+                        return
                         
                     loadView() if not async
+                    return
 
             loadView()
+            return
 
     begin: ->
         @results = soma.router.run(@pathname, @)
