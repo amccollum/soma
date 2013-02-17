@@ -16,8 +16,12 @@ exports.init = ->
     for key, value of packageJSON.soma
         soma.config[key] = value
 
-    for dep of packageJSON.dependencies
-        if 'soma' in require(dep + '/package').keywords
-            require(dep)
+    # for dep of packageJSON.dependencies
+    #     try
+    #         if 'soma' in require(dep + '/package').keywords
+    #             require(dep)
+    #     catch e
+    #         console.log(e)
+    #         continue
             
     return
