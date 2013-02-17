@@ -97,7 +97,7 @@ class soma.Context extends soma.Context
         @on 'render', =>
             $.enhance()
             
-            loadView = ->
+            nextView = =>
                 return if not @views.length
                     
                 url = @views.shift()
@@ -107,19 +107,18 @@ class soma.Context extends soma.Context
                     
                     @loadChunk url, data, (err) ->
                         throw err if err
-                        loadView() if async
+                        nextView() if async
                         return
                         
-                    loadView() if not async
+                    nextView() if not async
                     return
 
-            loadView()
+            nextView()
             return
 
     begin: ->
         @results = soma.router.run(@pathname, @)
         @render() if not @lazy
-        
         return
 
     send: (chunk) ->
