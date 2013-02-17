@@ -101,12 +101,12 @@ class soma.Context extends soma.Context
                 return if not @views.length
                     
                 url = @views.shift()
-                @loadScript { src: url, type: 'text/plain' }, (err, el) ->
+                @loadScript { src: url, type: 'text/plain' }, (err, el) =>
                     throw err if err
                     data = JSON.parse(el.attr('data-json'))
                     async = JSON.parse(el.attr('data-async'))
                     
-                    @loadChunk url, data, (err) ->
+                    @loadChunk url, data, (err) =>
                         throw err if err
                         nextView() if async
                         return
