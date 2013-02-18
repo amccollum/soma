@@ -156,6 +156,8 @@ class soma.Context extends soma.Context
                 $('body').unbind().html(@html)
                 @rendered = true
                 @emit('render')
+                
+            return
             
         if @built then done() else @on 'build', done
         return
@@ -180,7 +182,7 @@ class soma.Context extends soma.Context
         
     setTitle: (title) ->
         if not @rendered
-            @on 'render', => @setTitle(title)
+            @on 'render', => @setTitle(title); return
         else
             $('title').text(title)
             
@@ -188,7 +190,7 @@ class soma.Context extends soma.Context
 
     setIcon: (attributes) ->
         if not @rendered
-            @on 'render', => @setIcon(attributes)
+            @on 'render', => @setIcon(attributes); return
         else
             if typeof attributes is 'string'
                 attributes = { href: attributes }
@@ -260,9 +262,11 @@ class soma.Context extends soma.Context
                         success: (text) =>
                             el.text(text)
                             el.trigger('load')
+                            return
 
                         error: (xhr) =>
                             el.trigger('error')
+                            return
 
                 $('head').append(el)
 
@@ -294,6 +298,7 @@ class soma.Context extends soma.Context
             @loadElement 'script', attributes, null, (err) ->
                 return callback(arguments...) if err
                 callback(null, soma.bundles[sha][url])
+                return
         
         else
             attributes =
@@ -303,6 +308,7 @@ class soma.Context extends soma.Context
             @loadElement 'script', attributes, null, (err, el) ->
                 return callback(arguments...) if err
                 callback(null, el.text())
+                return
         
         return
 
