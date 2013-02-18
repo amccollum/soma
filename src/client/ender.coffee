@@ -10,20 +10,23 @@ $.ender
 $.ender({
     enhance: ->
         if history.pushState
-            $('a[data-precache != "true"]:local-link(0)', @).each ->
-                $(@).bind 'click', (event) ->
-                    history.pushState(true, '', @pathname)
-                    soma.load(@pathname)
-                    event.stop()
-                    return
-            
-            $('a[data-precache = "true"]:local-link(0)', @).each ->
-                $(@).bind 'click', soma.precache(@pathname)
-                return
+            $('a', @).union(@matching('a')).each ->
+                if $(@).is('a[data-precache != "true"]:local-link(0)')
+                    $(@).bind 'click', (event) ->
+                        history.pushState(true, '', @pathname)
+                        soma.load(@pathname)
+                        event.stop()
+                        return
+                        
+                else if $(@).is('a[data-precache = "true"]:local-link(0)')
+                    $(@).bind 'click', soma.precache(@pathname)
 
+                return
+                
     outerHTML: (html) ->
-        if html then @each -> $(@).replaceWith(html)
+        if html then @each -> $(@).replaceWith(html); return
         else @[0].outerHTML or new XMLSerializer().serializeToString(@[0])
+        return
 
 }, true)
 
@@ -46,6 +49,9 @@ $('document').ready ->
                 return
             
             soma.load(document.location.pathname)
+            return
+            
+    return
         
 
 soma.precache = (path) ->
@@ -100,11 +106,9 @@ class soma.Context extends soma.Context
             nextView = =>
                 return if not @views.length
                     
-                url = @views.shift()
+                {url, data, async} = @views.shift()
                 @loadScript { src: url, type: 'text/plain' }, (err, el) =>
                     throw err if err
-                    data = JSON.parse(el.attr('data-json'))
-                    async = JSON.parse(el.attr('data-async'))
                     
                     @loadChunk url, data, (err) =>
                         throw err if err

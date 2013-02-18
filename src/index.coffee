@@ -121,12 +121,14 @@ class soma.Context extends events.EventEmitter
             callback = data
             data = undefined
         
-        @views.push(url)
+        @views.push
+            url: url
+            data: data
+            async: async
+            
         @loadScript
             src: url
             type: 'text/plain'
-            'data-json': JSON.stringify(data or null)
-            'data-async': JSON.stringify(async or false)
             callback
         
     createSubcontext: (attributes) ->
