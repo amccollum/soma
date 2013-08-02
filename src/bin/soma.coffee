@@ -2,6 +2,7 @@ domain = require('domain')
 http = require('http')
 fs = require('fs')
 path = require('path')
+url = require('url')
 zlib = require('zlib')
 
 mime = require('../lib/node/lib/mime')
@@ -97,13 +98,15 @@ soma.init = () ->
                     requestDomain.dispose()
 
             requestDomain.run ->
-                if request.url of soma.files
-                    content = soma.files[request.url]
+                pathname = url.parse(request.url).pathname
+                
+                if pathname of soma.files
+                    content = soma.files[pathname]
             
                     sendContent = (err, content) ->
                         throw err if err
                         
-                        response.setHeader('Content-Type', mime.lookup(request.url))
+                        response.setHeader('Content-Type', mime.lookup(pathname))
                         response.setHeader('Content-Length', content.length)
                         response.setHeader('Content-Encoding', contentEncoding)
                         response.end(content)
