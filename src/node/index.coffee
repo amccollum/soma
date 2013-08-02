@@ -102,12 +102,17 @@ class soma.Context extends soma.Context
     begin: ->
         contentType = @request.headers['content-type']
         contentType = contentType.split(/;/)[0] if contentType
-        switch contentType
-            when undefined then @route()
-            when 'application/x-www-form-urlencoded' then @_readUrlEncoded()
-            when 'application/json' then @_readJSON()
-            when 'application/octet-stream' then @_readBinary()
-            when 'multipart/form-data' then @_readFormData()
+        
+        if soma.config.processBody == false
+            @route()
+        
+        else
+            switch contentType
+                when 'application/x-www-form-urlencoded' then @_readUrlEncoded()
+                when 'application/json' then @_readJSON()
+                when 'application/octet-stream' then @_readBinary()
+                when 'multipart/form-data' then @_readFormData()
+                else @route()
         
         return
         
@@ -222,17 +227,10 @@ class soma.Context extends soma.Context
         chunks = []
         @body = {}
 
-        if soma.config.streamBinary
-            @body['stream'] = @request
-            @body['length'] = @request.headers['content-length']
-            @body['filename'] = @request.headers['x-file-name']
+        @request.on 'data', (chunk) => chunks.push(chunk)
+        @request.on 'end', =>
+            @body[@request.headers['x-file-name']] = combineChunks(chunks)
             @route(data)
-            
-        else
-            @request.on 'data', (chunk) => chunks.push(chunk)
-            @request.on 'end', =>
-                @body[@request.headers['x-file-name']] = combineChunks(chunks)
-                @route(data)
             
     _readUrlEncoded: ->
         chunks = []
