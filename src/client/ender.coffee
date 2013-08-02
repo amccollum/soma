@@ -103,20 +103,17 @@ class soma.Context extends soma.Context
         @on 'render', =>
             $.enhance()
             
-            nextView = =>
+            nextView = (err) =>
+                throw err if err
                 return if not @views.length
                     
                 {url, data, async} = @views.shift()
-                @loadScript { src: url, type: 'text/plain' }, (err, el) =>
-                    throw err if err
-                    
-                    @loadChunk url, data, (err) =>
-                        throw err if err
-                        nextView() if async
-                        return
-                        
-                    nextView() if not async
-                    return
+                
+                if async
+                    @loadChunk url, data, nextView
+                else
+                    @loadChunk url, data
+                    nextView()
 
             nextView()
             return
