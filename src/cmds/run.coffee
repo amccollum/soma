@@ -1,6 +1,7 @@
 domain = require('domain')
 http = require('http')
 fs = require('fs')
+url = require('url')
 zlib = require('zlib')
 
 mime = require('../lib/node/lib/mime')
@@ -30,19 +31,24 @@ exports.run = ->
                 return
 
             requestDomain.run ->
-                if request.url of soma.files
-                    content = soma.files[request.url]
+                pathname = url.parse(request.url).pathname
+                
+                if pathname of soma.files
+                    content = soma.files[pathname]
                     contentEncoding = 'identity'
 
                     send = (err, content) ->
                         throw err if err
+                        
+                        if contentEncoding != 'identity'
+                            zlibCache[contentEncoding][pathname] = content
                         
                         if typeof content is 'string'
                             contentLength =  Buffer.byteLength(content)
                         else
                             contentLength = content.length
                         
-                        response.setHeader('Content-Type', mime.lookup(request.url))
+                        response.setHeader('Content-Type', mime.lookup(pathname))
                         response.setHeader('Content-Length', contentLength)
                         response.setHeader('Content-Encoding', contentEncoding)
                         response.end(content)
@@ -52,8 +58,8 @@ exports.run = ->
                     if soma.config.compress and (m = acceptEncoding.match(/\b(deflate|gzip)\b/))
                         contentEncoding = m[1]
                         
-                        if request.url in zlibCache[contentEncoding]
-                            send(null, zlibCache[contentEncoding][request.url])
+                        if pathname in zlibCache[contentEncoding]
+                            send(null, zlibCache[contentEncoding][pathname])
                         else
                             zlib[contentEncoding](content, send)
 
