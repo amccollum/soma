@@ -222,10 +222,17 @@ class soma.Context extends soma.Context
         chunks = []
         @body = {}
 
-        @request.on 'data', (chunk) => chunks.push(chunk)
-        @request.on 'end', =>
-            @body[@request.headers['x-file-name']] = combineChunks(chunks)
+        if soma.config.streamBinary
+            @body['stream'] = @request
+            @body['length'] = @request.headers['content-length']
+            @body['filename'] = @request.headers['x-file-name']
             @route(data)
+            
+        else
+            @request.on 'data', (chunk) => chunks.push(chunk)
+            @request.on 'end', =>
+                @body[@request.headers['x-file-name']] = combineChunks(chunks)
+                @route(data)
             
     _readUrlEncoded: ->
         chunks = []
