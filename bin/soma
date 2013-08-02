@@ -20,23 +20,23 @@ mime = require('../lib/node/lib/mime');
 soma = require('soma');
 
 load = function(source, exec, serve) {
-  var abs, m, name, names, stats, urls, watcher, _i, _len;
+  var abs, m, name, names, pathname, pathnames, stats, watcher, _i, _len;
   stats = fs.statSync(source);
   if (stats.isDirectory()) {
-    urls = [];
+    pathnames = [];
     names = fs.readdirSync(source);
     for (_i = 0, _len = names.length; _i < _len; _i++) {
       name = names[_i];
       if (name[0] === '.') {
         continue;
       }
-      urls = urls.concat(load("" + source + "/" + name, exec, serve));
+      pathnames = pathnames.concat(load("" + source + "/" + name, exec, serve));
     }
-    return urls;
+    return pathnames;
   } else {
     abs = "" + (process.cwd()) + "/" + source;
-    url = "/" + source;
-    if (__indexOf.call(soma.files, url) >= 0) {
+    pathname = "/" + source;
+    if (__indexOf.call(soma.files, pathname) >= 0) {
       return;
     }
     watcher = fs.watch(source, function() {
@@ -51,7 +51,7 @@ load = function(source, exec, serve) {
           if ((_ref = mime.lookup(source).slice(0, 4)) === 'text') {
             encoding = 'utf8';
           }
-          return soma.files[url] = fs.readFileSync(source, encoding);
+          return soma.files[pathname] = fs.readFileSync(source, encoding);
         }
       } catch (e) {
         console.log('Failed to reload module: ', source);
@@ -60,11 +60,11 @@ load = function(source, exec, serve) {
     });
     watcher.emit('change');
     if (exec && source.slice(-3) === '.js') {
-      soma._src = url;
+      soma._src = pathname;
       m = require(abs);
       soma._src = null;
     }
-    return [url];
+    return [pathname];
   }
 };
 

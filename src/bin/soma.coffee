@@ -13,22 +13,22 @@ load = (source, exec, serve) ->
     
     if stats.isDirectory()
 
-        urls = []
+        pathnames = []
         names = fs.readdirSync(source)
 
         for name in names
             if name[0] == '.'
                 continue
                 
-            urls = urls.concat(load("#{source}/#{name}", exec, serve))
+            pathnames = pathnames.concat(load("#{source}/#{name}", exec, serve))
         
-        return urls
+        return pathnames
         
     else
         abs = "#{process.cwd()}/#{source}"
-        url = "/#{source}"
+        pathname = "/#{source}"
         
-        if url in soma.files
+        if pathname in soma.files
             return
             
         watcher = fs.watch source, ->
@@ -42,7 +42,7 @@ load = (source, exec, serve) ->
                     if mime.lookup(source).slice(0, 4) in ['text']
                         encoding = 'utf8'
 
-                    soma.files[url] = fs.readFileSync(source, encoding)
+                    soma.files[pathname] = fs.readFileSync(source, encoding)
 
             catch e
                 console.log('Failed to reload module: ', source)
@@ -53,11 +53,11 @@ load = (source, exec, serve) ->
 
         if exec and source.slice(-3) == '.js'
             # This so we can store the source file of chunk and view subclasses defined in the module
-            soma._src = url
+            soma._src = pathname
             m = require(abs)
             soma._src = null
             
-        return [url]
+        return [pathname]
 
 
 soma.init = () ->
