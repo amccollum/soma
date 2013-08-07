@@ -4,7 +4,7 @@ fs = require('fs')
 url = require('url')
 zlib = require('zlib')
 
-mime = require('../lib/node/lib/mime')
+mime = require('./lib/mime')
 soma = require('soma')
 
 exports.run = ->
