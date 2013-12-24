@@ -10,6 +10,7 @@ execCmds = (cmds) ->
 task 'build', 'Compile to JS', ->
     execCmds [
         'coffee --compile --bare --output cmds src/cmds/*.coffee'
+        'coffee --compile --bare --output cmds/lib src/cmds/lib/*.coffee'
 
         'coffee --compile --bare --output lib src/*.coffee'
         'coffee --compile --bare --output lib/client src/client/*.coffee'
